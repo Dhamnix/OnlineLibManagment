@@ -23,19 +23,30 @@
         <div class="card border-0 shadow-sm mb-4">
             <div class="card-body">
                 <form method="get" class="row g-3 align-items-end">
-                    <div class="col-12 col-md-6">
-                        <label for="book-search" class="form-label">Search</label>
+                    <div class="col-12 col-md-3">
+                        <label for="book-search" class="form-label fw-semibold">Search Title</label>
                         <input
                             type="search"
                             id="book-search"
-                            name="q"
-                            value="{{ query }}"
+                            name="search"
+                            value="{{ search }}"
                             class="form-control"
-                            placeholder="Search by title or author"
+                            placeholder="Search by title..."
                         >
                     </div>
-                    <div class="col-12 col-md-4">
-                        <label for="genre-filter" class="form-label">Genre</label>
+                    <div class="col-12 col-md-3">
+                        <label for="author-filter" class="form-label fw-semibold">Author</label>
+                        <select id="author-filter" name="author" class="form-select">
+                            <option value="">All authors</option>
+                            {% for author in authors %}
+                                <option value="{{ author }}" {% if author == selected_author %}selected{% endif %}>
+                                    {{ author }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-2">
+                        <label for="genre-filter" class="form-label fw-semibold">Genre</label>
                         <select id="genre-filter" name="genre" class="form-select">
                             <option value="">All genres</option>
                             {% for genre in genres %}
@@ -45,8 +56,22 @@
                             {% endfor %}
                         </select>
                     </div>
-                    <div class="col-12 col-md-2 d-grid">
-                        <button type="submit" class="btn btn-outline-primary">Apply</button>
+                    <div class="col-12 col-md-2">
+                        <label for="year-filter" class="form-label fw-semibold">Publish Year</label>
+                        <select id="year-filter" name="year" class="form-select">
+                            <option value="">All years</option>
+                            {% for yr in years %}
+                                <option value="{{ yr }}" {% if yr|slugify == selected_year|slugify %}selected{% endif %}>
+                                    {{ yr }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-2 d-flex gap-2">
+                        <button type="submit" class="btn btn-primary flex-grow-1">Apply</button>
+                        {% if search or selected_author or selected_genre or selected_year %}
+                            <a href="{% url 'books:book_list' %}" class="btn btn-outline-secondary" title="Clear Filters">Clear</a>
+                        {% endif %}
                     </div>
                 </form>
             </div>
@@ -97,7 +122,7 @@
                 <ul class="pagination justify-content-center">
                     {% if page_obj.has_previous %}
                         <li class="page-item">
-                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if query %}&q={{ query|urlencode }}{% endif %}{% if selected_genre %}&genre={{ selected_genre|urlencode }}{% endif %}">Previous</a>
+                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if query_params %}&{{ query_params }}{% endif %}">Previous</a>
                         </li>
                     {% else %}
                         <li class="page-item disabled"><span class="page-link">Previous</span></li>
@@ -105,7 +130,7 @@
 
                     {% for page_number in paginator.page_range %}
                         <li class="page-item {% if page_number == page_obj.number %}active{% endif %}">
-                            <a class="page-link" href="?page={{ page_number }}{% if query %}&q={{ query|urlencode }}{% endif %}{% if selected_genre %}&genre={{ selected_genre|urlencode }}{% endif %}">
+                            <a class="page-link" href="?page={{ page_number }}{% if query_params %}&{{ query_params }}{% endif %}">
                                 {{ page_number }}
                             </a>
                         </li>
@@ -113,7 +138,7 @@
 
                     {% if page_obj.has_next %}
                         <li class="page-item">
-                            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if query %}&q={{ query|urlencode }}{% endif %}{% if selected_genre %}&genre={{ selected_genre|urlencode }}{% endif %}">Next</a>
+                            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if query_params %}&{{ query_params }}{% endif %}">Next</a>
                         </li>
                     {% else %}
                         <li class="page-item disabled"><span class="page-link">Next</span></li>
