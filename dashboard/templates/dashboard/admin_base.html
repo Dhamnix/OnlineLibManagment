@@ -1,0 +1,503 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Admin Panel | BookWise{% endblock %}</title>
+    
+    <!-- Bootstrap 5 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Font Awesome 6 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #f5f7fa;
+        }
+
+        /* ========================================
+           SIMPLE SIDEBAR
+        ======================================== */
+        .admin-sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 260px;
+            height: 100vh;
+            background: #1e293b;
+            z-index: 100;
+            transition: all 0.3s ease;
+            overflow-y: auto;
+        }
+
+        .admin-sidebar.collapsed {
+            width: 70px;
+        }
+
+        .admin-sidebar.collapsed .sidebar-link span,
+        .admin-sidebar.collapsed .logo-text,
+        .admin-sidebar.collapsed .nav-section-title {
+            display: none;
+        }
+
+        .admin-sidebar.collapsed .sidebar-link {
+            justify-content: center;
+            padding: 0.8rem;
+        }
+
+        .admin-sidebar.collapsed .sidebar-link i {
+            margin: 0;
+            font-size: 1.2rem;
+        }
+
+        /* Sidebar Logo */
+        .sidebar-logo {
+            padding: 1.2rem;
+            text-align: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            margin-bottom: 1rem;
+        }
+
+        .sidebar-logo .logo-icon {
+            width: 40px;
+            height: 40px;
+            background: #6366f1;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto;
+        }
+
+        .sidebar-logo .logo-icon i {
+            font-size: 1.2rem;
+            color: white;
+        }
+
+        .sidebar-logo .logo-text {
+            margin-top: 0.5rem;
+            font-size: 1rem;
+            font-weight: 600;
+            color: white;
+        }
+
+        /* Sidebar Navigation */
+        .sidebar-nav {
+            padding: 0 0.8rem;
+        }
+
+        .nav-section-title {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            color: rgba(255, 255, 255, 0.4);
+            padding: 0.5rem 0.8rem;
+            margin-top: 0.5rem;
+        }
+
+        .sidebar-link {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 0.6rem 0.8rem;
+            color: rgba(255, 255, 255, 0.7);
+            text-decoration: none;
+            border-radius: 8px;
+            transition: all 0.2s;
+            margin-bottom: 2px;
+        }
+
+        .sidebar-link i {
+            width: 22px;
+            font-size: 1rem;
+        }
+
+        .sidebar-link span {
+            font-size: 0.85rem;
+        }
+
+        .sidebar-link:hover {
+            background: rgba(99, 102, 241, 0.3);
+            color: white;
+        }
+
+        .sidebar-link.active {
+            background: #6366f1;
+            color: white;
+        }
+
+        /* Toggle Button */
+        .sidebar-toggle {
+            position: absolute;
+            bottom: 1rem;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            color: white;
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        /* ========================================
+           MAIN CONTENT
+        ======================================== */
+        .admin-main {
+            margin-left: 260px;
+            transition: all 0.3s ease;
+            min-height: 100vh;
+        }
+
+        .admin-main.sidebar-collapsed {
+            margin-left: 70px;
+        }
+
+        /* Admin Header */
+        .admin-header {
+            background: white;
+            padding: 0.8rem 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+            position: sticky;
+            top: 0;
+            z-index: 99;
+        }
+
+        .page-title h1 {
+            font-size: 1.3rem;
+            font-weight: 600;
+            margin: 0;
+        }
+
+        .page-title p {
+            font-size: 0.75rem;
+            color: #64748b;
+            margin: 0;
+        }
+
+        /* Mobile Menu */
+        .mobile-menu-btn {
+            display: none;
+            background: none;
+            border: none;
+            font-size: 1.2rem;
+            margin-right: 1rem;
+        }
+
+        /* User Dropdown */
+        .admin-user {
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+            cursor: pointer;
+        }
+
+        .admin-avatar {
+            width: 36px;
+            height: 36px;
+            background: #6366f1;
+            border-radius: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+        }
+
+        .admin-name {
+            font-weight: 600;
+            font-size: 0.85rem;
+        }
+
+        .admin-role {
+            font-size: 0.7rem;
+            color: #64748b;
+        }
+
+        .admin-dropdown {
+            position: relative;
+        }
+
+        .admin-dropdown-menu {
+            position: absolute;
+            top: 45px;
+            right: 0;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            min-width: 180px;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.2s;
+        }
+
+        .admin-dropdown.open .admin-dropdown-menu {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .admin-dropdown-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 0.6rem 1rem;
+            color: #1e293b;
+            text-decoration: none;
+            font-size: 0.85rem;
+        }
+
+        .admin-dropdown-item:hover {
+            background: #f1f5f9;
+        }
+
+        /* Admin Footer */
+        .admin-footer {
+            background: white;
+            padding: 0.8rem 1.5rem;
+            text-align: center;
+            border-top: 1px solid #e2e8f0;
+            margin-top: 2rem;
+            font-size: 0.75rem;
+            color: #64748b;
+        }
+
+        /* Content */
+        .admin-content {
+            padding: 1.5rem;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .admin-sidebar {
+                transform: translateX(-100%);
+            }
+            
+            .admin-sidebar.mobile-open {
+                transform: translateX(0);
+            }
+            
+            .admin-main {
+                margin-left: 0;
+            }
+            
+            .mobile-menu-btn {
+                display: block;
+            }
+            
+            .admin-info {
+                display: none;
+            }
+        }
+
+        @media (min-width: 769px) {
+            .mobile-menu-btn {
+                display: none;
+            }
+        }
+
+        .sidebar-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 99;
+            display: none;
+        }
+
+        .sidebar-overlay.active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <!-- Sidebar -->
+    <aside class="admin-sidebar" id="adminSidebar">
+        <div class="sidebar-logo">
+            <div class="logo-icon">
+                <i class="fas fa-crown"></i>
+            </div>
+            <div class="logo-text">Admin</div>
+        </div>
+
+        <div class="sidebar-nav">
+            <div class="nav-section-title">MAIN</div>
+            <a href="{% url 'dashboard:admin-dashboard' %}" class="sidebar-link">
+                <i class="fas fa-tachometer-alt"></i>
+                <span>Dashboard</span>
+            </a>
+
+            <div class="nav-section-title">LIBRARY</div>
+            <a href="{% url 'books:book_list' %}" class="sidebar-link">
+                <i class="fas fa-book"></i>
+                <span>Books</span>
+            </a>
+            <a href="{% url 'books:book_create' %}" class="sidebar-link">
+                <i class="fas fa-plus-circle"></i>
+                <span>Add Book</span>
+            </a>
+            <a href="{% url 'borrowing:borrow_list' %}" class="sidebar-link">
+                <i class="fas fa-hand-holding-heart"></i>
+                <span>Borrowings</span>
+            </a>
+            <a href="{% url 'borrowing:reservation_list' %}" class="sidebar-link">
+                <i class="fas fa-clock"></i>
+                <span>Reservations</span>
+            </a>
+            <a href="{% url 'borrowing:fine_list' %}" class="sidebar-link">
+                <i class="fas fa-coins"></i>
+                <span>Fines</span>
+            </a>
+
+            <div class="nav-section-title">USERS</div>
+            <a href="#" class="sidebar-link">
+                <i class="fas fa-users"></i>
+                <span>All Users</span>
+            </a>
+
+            <div class="nav-section-title">SYSTEM</div>
+            <a href="#" class="sidebar-link">
+                <i class="fas fa-cog"></i>
+                <span>Settings</span>
+            </a>
+        </div>
+
+        <button class="sidebar-toggle" id="sidebarToggle">
+            <i class="fas fa-chevron-left"></i>
+        </button>
+    </aside>
+
+    <!-- Main Content -->
+    <div class="admin-main" id="adminMain">
+        <header class="admin-header">
+            <div class="d-flex align-items-center">
+                <button class="mobile-menu-btn" id="mobileMenuBtn">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <div class="page-title">
+                    <h1>{% block page_title %}Dashboard{% endblock %}</h1>
+                    <p>{% block page_subtitle %}Hello, {{ user.get_full_name|default:user.username }}{% endblock %}</p>
+                </div>
+            </div>
+
+            <div class="admin-dropdown" id="adminDropdown">
+                <div class="admin-user" id="adminUserBtn">
+                    <div class="admin-info">
+                        <div class="admin-name">{{ user.get_full_name|default:user.username }}</div>
+                        <div class="admin-role">{{ user.get_role_display }}</div>
+                    </div>
+                    <div class="admin-avatar">
+                        {{ user.username|first|upper }}
+                    </div>
+                    <i class="fas fa-chevron-down" style="font-size: 0.7rem; color: #64748b;"></i>
+                </div>
+                <div class="admin-dropdown-menu">
+                    <a href="{% url 'accounts:profile' %}" class="admin-dropdown-item">
+                        <i class="fas fa-user"></i> Profile
+                    </a>
+                    <a href="{% url 'dashboard:home' %}" class="admin-dropdown-item">
+                        <i class="fas fa-globe"></i> Frontend
+                    </a>
+                    <hr class="my-1">
+                    <form method="post" action="{% url 'accounts:logout' %}">
+                        {% csrf_token %}
+                        <button type="submit" class="admin-dropdown-item" style="width: 100%; color: #ef4444;">
+                            <i class="fas fa-sign-out-alt"></i> Logout
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </header>
+
+        <div class="admin-content">
+            {% block admin_content %}{% endblock %}
+        </div>
+
+        <footer class="admin-footer">
+            © {% now "Y" %} BookWise Admin Panel
+        </footer>
+    </div>
+
+    <script>
+        // Sidebar Toggle
+        const sidebar = document.getElementById('adminSidebar');
+        const main = document.getElementById('adminMain');
+        const toggleBtn = document.getElementById('sidebarToggle');
+        
+        if (toggleBtn) {
+            toggleBtn.addEventListener('click', function() {
+                sidebar.classList.toggle('collapsed');
+                main.classList.toggle('sidebar-collapsed');
+                const icon = toggleBtn.querySelector('i');
+                if (sidebar.classList.contains('collapsed')) {
+                    icon.classList.remove('fa-chevron-left');
+                    icon.classList.add('fa-chevron-right');
+                } else {
+                    icon.classList.remove('fa-chevron-right');
+                    icon.classList.add('fa-chevron-left');
+                }
+            });
+        }
+
+        // Mobile Menu
+        const mobileBtn = document.getElementById('mobileMenuBtn');
+        const overlay = document.getElementById('sidebarOverlay');
+        
+        if (mobileBtn) {
+            mobileBtn.addEventListener('click', function() {
+                sidebar.classList.add('mobile-open');
+                overlay.classList.add('active');
+            });
+        }
+        
+        if (overlay) {
+            overlay.addEventListener('click', function() {
+                sidebar.classList.remove('mobile-open');
+                overlay.classList.remove('active');
+            });
+        }
+
+        // User Dropdown
+        const adminDropdown = document.getElementById('adminDropdown');
+        const adminUserBtn = document.getElementById('adminUserBtn');
+        
+        if (adminUserBtn) {
+            adminUserBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                adminDropdown.classList.toggle('open');
+            });
+            document.addEventListener('click', function() {
+                adminDropdown.classList.remove('open');
+            });
+        }
+
+        // Active Link
+        document.querySelectorAll('.sidebar-link').forEach(link => {
+            if (link.href === window.location.href) {
+                link.classList.add('active');
+            }
+        });
+    </script>
+
+    {% block extra_js %}{% endblock %}
+</body>
+</html>
