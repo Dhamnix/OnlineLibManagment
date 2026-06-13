@@ -311,3 +311,49 @@ class PayFineView(LoginRequiredMixin, View):
         fine.save()
         messages.success(request, f"Fine of {fine.amount} for '{fine.borrow.book.title}' has been successfully paid.")
         return redirect("borrowing:fine_list")
+
+class BorrowListView(LoginRequiredMixin, ListView):
+    model = Borrow
+    template_name = "borrowing/borrow_list.html"
+    context_object_name = "borrowings"
+    paginate_by = 10
+
+    def get_queryset(self):
+        user = self.request.user
+        qs = Borrow.objects.select_related("book", "user")
+        if user.is_superuser or getattr(user, "role", None) == "ADMIN" or user.has_perm("borrowing.manage_borrowings"):
+            return qs.all()
+        return qs.filter(user=user)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        user = self.request.user
+        
+        # Get all borrowings for this user
+        if user.is_superuser or getattr(user, "role", None) == "ADMIN":
+            all_borrowings = Borrow.objects.all()
+        else:
+            all_borrowings = Borrow.objects.filter(user=user)
+        
+        now = timezone.now()
+        
+        context['total_active'] = all_borrowings.filter(
+            status=Borrow.StatusChoices.BORROWED
+        ).count()
+        
+        # Due in next 3 days
+        three_days_later = now + timezone.timedelta(days=3)
+        context['due_soon_count'] = all_borrowings.filter(
+            status=Borrow.StatusChoices.BORROWED,
+            due_date__gte=now,
+            due_date__lte=three_days_later
+        ).count()
+        
+        context['overdue_count'] = all_borrowings.filter(
+            status=Borrow.StatusChoices.BORROWED,
+            due_date__lt=now
+        ).count()
+        
+        context['now'] = now
+        
+        return context
