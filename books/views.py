@@ -90,6 +90,14 @@ class BookCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
     success_url = reverse_lazy("books:book_list")
     permission_required = "books.add_book"
 
+    def has_permission(self):
+        user = self.request.user
+        return user.is_authenticated and (
+            user.is_superuser or
+            getattr(user, "role", None) == "ADMIN" or
+            super().has_permission()
+        )
+
     def form_valid(self, form):
         messages.success(self.request, "Book created successfully.")
         return super().form_valid(form)
@@ -108,6 +116,14 @@ class BookUpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateView):
     def get_success_url(self):
         return reverse_lazy("books:book_detail", kwargs={"pk": self.object.pk})
 
+    def has_permission(self):
+        user = self.request.user
+        return user.is_authenticated and (
+            user.is_superuser or
+            getattr(user, "role", None) == "ADMIN" or
+            super().has_permission()
+        )
+
     def form_valid(self, form):
         messages.success(self.request, "Book updated successfully.")
         return super().form_valid(form)
@@ -123,6 +139,14 @@ class BookDeleteView(LoginRequiredMixin, PermissionRequiredMixin, DeleteView):
     context_object_name = "book"
     success_url = reverse_lazy("books:book_list")
     permission_required = "books.delete_book"
+
+    def has_permission(self):
+        user = self.request.user
+        return user.is_authenticated and (
+            user.is_superuser or
+            getattr(user, "role", None) == "ADMIN" or
+            super().has_permission()
+        )
 
     def form_valid(self, form):
         messages.success(self.request, "Book deleted successfully.")
