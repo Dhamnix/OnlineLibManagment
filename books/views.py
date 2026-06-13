@@ -221,6 +221,23 @@ class BookDeleteView(LoginRequiredMixin, PermissionRequiredMixin, DeleteView):
             super().has_permission()
         )
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        book = self.get_object()
+        
+        # Calculate average rating
+        from reviews.models import Review
+        from django.db.models import Avg
+        
+        avg_rating = Review.objects.filter(book=book).aggregate(avg=Avg('rating'))['avg']
+        if avg_rating:
+            context['average_rating'] = round(avg_rating, 1)
+        else:
+            context['average_rating'] = None
+            
+        return context
+
     def form_valid(self, form):
         messages.success(self.request, "Book deleted successfully.")
         return super().form_valid(form)
+    
