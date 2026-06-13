@@ -53,6 +53,7 @@ class BorrowingSystemTests(TestCase):
 
         # Setup URLs
         self.list_url = reverse("borrowing:borrow_list")
+        self.history_url = reverse("borrowing:borrow_history")
         self.borrow_stock_url = reverse("borrowing:borrow_book", kwargs={"book_id": self.book_in_stock.pk})
         self.borrow_out_url = reverse("borrowing:borrow_book", kwargs={"book_id": self.book_out_of_stock.pk})
 
@@ -164,3 +165,74 @@ class BorrowingSystemTests(TestCase):
         
         # Verify librarian sees both records
         self.assertEqual(len(response.context["borrowings"]), 2)
+
+    def test_history_active_filter(self):
+        # Create active borrow
+        Borrow.objects.create(
+            user=self.member_user,
+            book=self.book_in_stock,
+            status=Borrow.StatusChoices.BORROWED,
+            due_date=timezone.now() + timedelta(days=14)
+        )
+        # Create returned borrow
+        Borrow.objects.create(
+            user=self.member_user,
+            book=self.book_out_of_stock,
+            status=Borrow.StatusChoices.RETURNED,
+            due_date=timezone.now() - timedelta(days=1),
+            return_date=timezone.now()
+        )
+        
+        self.client.login(username="member_user", password="password123")
+        response = self.client.get(self.history_url, {"status": "active"})
+        
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.context["borrowings"]), 1)
+        self.assertEqual(response.context["borrowings"][0].book, self.book_in_stock)
+
+    def test_history_returned_filter(self):
+        # Create active borrow
+        Borrow.objects.create(
+            user=self.member_user,
+            book=self.book_in_stock,
+            status=Borrow.StatusChoices.BORROWED,
+            due_date=timezone.now() + timedelta(days=14)
+        )
+        # Create returned borrow
+        Borrow.objects.create(
+            user=self.member_user,
+            book=self.book_out_of_stock,
+            status=Borrow.StatusChoices.RETURNED,
+            due_date=timezone.now() - timedelta(days=1),
+            return_date=timezone.now()
+        )
+        
+        self.client.login(username="member_user", password="password123")
+        response = self.client.get(self.history_url, {"status": "returned"})
+        
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.context["borrowings"]), 1)
+        self.assertEqual(response.context["borrowings"][0].book, self.book_out_of_stock)
+
+    def test_history_overdue_filter(self):
+        # Create active, not overdue borrow
+        Borrow.objects.create(
+            user=self.member_user,
+            book=self.book_in_stock,
+            status=Borrow.StatusChoices.BORROWED,
+            due_date=timezone.now() + timedelta(days=14)
+        )
+        # Create active, overdue borrow (due_date in past)
+        Borrow.objects.create(
+            user=self.member_user,
+            book=self.book_out_of_stock,
+            status=Borrow.StatusChoices.BORROWED,
+            due_date=timezone.now() - timedelta(days=5)
+        )
+        
+        self.client.login(username="member_user", password="password123")
+        response = self.client.get(self.history_url, {"status": "overdue"})
+        
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.context["borrowings"]), 1)
+        self.assertEqual(response.context["borrowings"][0].book, self.book_out_of_stock)

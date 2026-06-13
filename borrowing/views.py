@@ -94,3 +94,39 @@ class ReturnBookView(LoginRequiredMixin, View):
             messages.error(request, "An error occurred while returning the book. Please try again.", extra_tags="danger")
             
         return redirect("borrowing:borrow_list")
+
+
+class BorrowHistoryView(LoginRequiredMixin, ListView):
+    model = Borrow
+    template_name = "borrowing/borrow_history.html"
+    context_object_name = "borrowings"
+    paginate_by = 10
+
+    def get_queryset(self):
+        user = self.request.user
+        # Librarians/admins see all borrowings, members see only their own
+        if user.is_superuser or getattr(user, "role", None) == "ADMIN" or user.has_perm("borrowing.manage_borrowings"):
+            queryset = Borrow.objects.all()
+        else:
+            queryset = Borrow.objects.filter(user=user)
+
+        status_filter = self.request.GET.get("status", "").strip().lower()
+        now = timezone.now()
+
+        if status_filter == "active":
+            queryset = queryset.filter(status=Borrow.StatusChoices.BORROWED, due_date__gte=now)
+        elif status_filter == "returned":
+            queryset = queryset.filter(status=Borrow.StatusChoices.RETURNED)
+        elif status_filter == "overdue":
+            queryset = queryset.filter(status=Borrow.StatusChoices.BORROWED, due_date__lt=now)
+
+        return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        status = self.request.GET.get("status", "").strip().lower()
+        context["current_status"] = status
+        
+        # Add a helper for templates to check if a borrowing is overdue
+        context["now"] = timezone.now()
+        return context
