@@ -25,7 +25,8 @@ class BookListView(ListView):
         if search:
             queryset = queryset.filter(title__icontains=search)
         if author:
-            queryset = queryset.filter(author=author)
+            # Use case-insensitive containment to avoid exact-match NUX
+            queryset = queryset.filter(author__icontains=author)
         if genre:
             queryset = queryset.filter(genre=genre)
         if year:
@@ -90,8 +91,8 @@ class BookDetailView(DetailView):
         from reviews.models import Review
         from reviews.views import get_book_average_rating
         
-        # Get all reviews for the book
-        reviews = Review.objects.filter(book=book)
+        # Get all reviews for the book and prefetch related user to avoid N+1 in templates
+        reviews = Review.objects.filter(book=book).select_related("user")
         context["reviews"] = reviews
         
         # Calculate average rating

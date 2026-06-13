@@ -22,10 +22,12 @@ class BorrowListView(LoginRequiredMixin, ListView):
 
     def get_queryset(self):
         user = self.request.user
+        # Use select_related to avoid N+1 when templates access borrow.book or borrow.user
+        qs = Borrow.objects.select_related("book", "user")
         # Librarians/admins see all borrowings, members see only their own
         if user.is_superuser or getattr(user, "role", None) == "ADMIN" or user.has_perm("borrowing.manage_borrowings"):
-            return Borrow.objects.all()
-        return Borrow.objects.filter(user=user)
+            return qs.all()
+        return qs.filter(user=user)
 
 
 class BorrowBookView(LoginRequiredMixin, View):
@@ -157,11 +159,13 @@ class BorrowHistoryView(LoginRequiredMixin, ListView):
 
     def get_queryset(self):
         user = self.request.user
+        # Use select_related to avoid N+1 when rendering borrow lists
+        qs = Borrow.objects.select_related("book", "user")
         # Librarians/admins see all borrowings, members see only their own
         if user.is_superuser or getattr(user, "role", None) == "ADMIN" or user.has_perm("borrowing.manage_borrowings"):
-            queryset = Borrow.objects.all()
+            queryset = qs
         else:
-            queryset = Borrow.objects.filter(user=user)
+            queryset = qs.filter(user=user)
 
         status_filter = self.request.GET.get("status", "").strip().lower()
         now = timezone.now()
@@ -240,9 +244,10 @@ class ReservationListView(LoginRequiredMixin, ListView):
 
     def get_queryset(self):
         user = self.request.user
+        qs = Reservation.objects.select_related("book", "user").order_by("-reservation_date")
         if user.is_superuser or getattr(user, "role", None) == "ADMIN" or user.has_perm("borrowing.manage_borrowings"):
-            return Reservation.objects.all().order_by("-reservation_date")
-        return Reservation.objects.filter(user=user).order_by("-reservation_date")
+            return qs
+        return qs.filter(user=user)
 
 
 class CancelReservationView(LoginRequiredMixin, View):
@@ -276,7 +281,8 @@ class FineListView(LoginRequiredMixin, ListView):
         if user.is_superuser or getattr(user, "role", None) == "ADMIN" or user.has_perm("borrowing.manage_borrowings"):
             from .services import update_all_overdue_fines
             update_all_overdue_fines()
-            return Fine.objects.all()
+            # select_related to avoid N+1 when templates access fine.borrow.book and fine.user
+            return Fine.objects.select_related("borrow", "user", "borrow__book").all()
         else:
             from .services import create_or_update_fine_for_borrow
             active_overdue = Borrow.objects.filter(
@@ -286,7 +292,7 @@ class FineListView(LoginRequiredMixin, ListView):
             )
             for borrow in active_overdue:
                 create_or_update_fine_for_borrow(borrow)
-            return Fine.objects.filter(user=user)
+            return Fine.objects.select_related("borrow", "borrow__book").filter(user=user)
 
 
 class PayFineView(LoginRequiredMixin, View):
