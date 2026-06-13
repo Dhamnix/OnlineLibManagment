@@ -7,12 +7,14 @@ from borrowing.models import Borrow, Reservation, Fine
 from books.models import Book
 from django.contrib.auth import get_user_model
 
+from recommendations.services import recommend_for_user, similar_books
+
 
 User = get_user_model()
 
 
 class DashboardView(LoginRequiredMixin, TemplateView):
-    """User-facing dashboard (keeps existing behavior)."""
+    """User-facing dashboard including recommendation sections."""
 
     template_name = "dashboard/dashboard.html"
 
@@ -40,18 +42,16 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         )
         fines_total = outstanding_fines_qs.aggregate(total=Sum("amount"))["total"] or 0
 
-        # Recommended books: available, not already borrowed or reserved by user
-        borrowed_ids = Borrow.objects.filter(user=user).values_list("book_id", flat=True)
-        reserved_ids = Reservation.objects.filter(user=user).values_list("book_id", flat=True)
+        # Recommended For You (from recommendation service)
+        recommended_for_you = recommend_for_user(user, limit=6)
 
-        excluded_ids = set(list(borrowed_ids) + list(reserved_ids))
-
-        recommended_books = (
-            Book.objects.filter(available_copies__gt=0)
-            .exclude(pk__in=excluded_ids)
-            .annotate(borrow_count=Count("borrowings"))
-            .order_by("-borrow_count", "title")[:5]
+        # Similar Books: base on user's most recently borrowed book
+        last_borrow = (
+            Borrow.objects.filter(user=user).select_related("book").order_by("-borrow_date").first()
         )
+        similar_books_list = []
+        if last_borrow and last_borrow.book:
+            similar_books_list = similar_books(last_borrow.book, limit=6)
 
         context.update(
             {
@@ -59,7 +59,8 @@ class DashboardView(LoginRequiredMixin, TemplateView):
                 "reservations": reservations,
                 "outstanding_fines": outstanding_fines_qs,
                 "fines_total": fines_total,
-                "recommended_books": recommended_books,
+                "recommended_for_you": recommended_for_you,
+                "similar_books": similar_books_list,
             }
         )
         return context
