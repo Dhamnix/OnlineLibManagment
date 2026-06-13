@@ -233,6 +233,9 @@ class AdminUserAddView(LoginRequiredMixin, UserPassesTestMixin, View):
         return user.is_staff or user.is_superuser or getattr(user, "role", None) == "ADMIN"
 
     def post(self, request):
+        import json
+        from django.http import JsonResponse
+        
         username = request.POST.get('username')
         email = request.POST.get('email')
         password = request.POST.get('password')
@@ -242,13 +245,11 @@ class AdminUserAddView(LoginRequiredMixin, UserPassesTestMixin, View):
 
         # Check if username exists
         if User.objects.filter(username=username).exists():
-            messages.error(request, f'Username "{username}" already exists.')
-            return redirect('dashboard:admin_users')
+            return JsonResponse({'success': False, 'error': f'Username "{username}" already exists.'})
         
         # Check if email exists
         if User.objects.filter(email=email).exists():
-            messages.error(request, f'Email "{email}" already exists.')
-            return redirect('dashboard:admin_users')
+            return JsonResponse({'success': False, 'error': f'Email "{email}" already exists.'})
 
         # Create user
         user = User.objects.create_user(
@@ -260,9 +261,7 @@ class AdminUserAddView(LoginRequiredMixin, UserPassesTestMixin, View):
             role=role
         )
         
-        messages.success(request, f'User "{username}" created successfully.')
-        return redirect('dashboard:admin_users')
-
+        return JsonResponse({'success': True, 'message': f'User "{username}" created successfully.'})
 
 class AdminUserDeleteView(LoginRequiredMixin, UserPassesTestMixin, View):
     """Delete a user from admin panel"""
@@ -272,18 +271,19 @@ class AdminUserDeleteView(LoginRequiredMixin, UserPassesTestMixin, View):
         return user.is_staff or user.is_superuser or getattr(user, "role", None) == "ADMIN"
 
     def post(self, request, pk):
+        from django.http import JsonResponse
+        
         user_to_delete = get_object_or_404(User, pk=pk)
         
         # Prevent deleting yourself
         if user_to_delete == request.user:
-            messages.error(request, 'You cannot delete your own account.')
-            return redirect('dashboard:admin_users')
+            return JsonResponse({'success': False, 'error': 'You cannot delete your own account.'})
         
         username = user_to_delete.username
         user_to_delete.delete()
-        messages.success(request, f'User "{username}" deleted successfully.')
-        return redirect('dashboard:admin_users')
-
+        
+        return JsonResponse({'success': True, 'message': f'User "{username}" deleted successfully.'})
+    
 
 class AdminUserExportView(LoginRequiredMixin, UserPassesTestMixin, View):
     """Export all users to CSV file"""
@@ -524,6 +524,8 @@ class AdminUserUpdateView(LoginRequiredMixin, UserPassesTestMixin, View):
         return user.is_staff or user.is_superuser or getattr(user, "role", None) == "ADMIN"
 
     def post(self, request, pk):
+        from django.http import JsonResponse
+        
         user = get_object_or_404(User, pk=pk)
         
         username = request.POST.get('username')
@@ -536,13 +538,11 @@ class AdminUserUpdateView(LoginRequiredMixin, UserPassesTestMixin, View):
         
         # Check username uniqueness
         if User.objects.exclude(pk=pk).filter(username=username).exists():
-            messages.error(request, f'Username "{username}" already taken.')
-            return redirect('dashboard:admin_users')
+            return JsonResponse({'success': False, 'error': f'Username "{username}" already taken.'})
         
         # Check email uniqueness
         if User.objects.exclude(pk=pk).filter(email=email).exists():
-            messages.error(request, f'Email "{email}" already taken.')
-            return redirect('dashboard:admin_users')
+            return JsonResponse({'success': False, 'error': f'Email "{email}" already taken.'})
         
         user.username = username
         user.email = email
@@ -556,8 +556,7 @@ class AdminUserUpdateView(LoginRequiredMixin, UserPassesTestMixin, View):
         
         user.save()
         
-        messages.success(request, f'User "{username}" updated successfully.')
-        return redirect('dashboard:admin_users')
+        return JsonResponse({'success': True, 'message': f'User "{username}" updated successfully.'})
     
 class AdminUserDataView(LoginRequiredMixin, UserPassesTestMixin, View):
     """Get user data as JSON for edit form"""

@@ -406,3 +406,32 @@ class FineListView(LoginRequiredMixin, ListView):
         context['now'] = timezone.now()
         
         return context
+    
+class ReservationListView(LoginRequiredMixin, ListView):
+    model = Reservation
+    template_name = "borrowing/reservation_list.html"
+    context_object_name = "reservations"
+    paginate_by = 10
+
+    def get_queryset(self):
+        user = self.request.user
+        qs = Reservation.objects.select_related("book", "user").order_by("-reservation_date")
+        if user.is_superuser or getattr(user, "role", None) == "ADMIN" or user.has_perm("borrowing.manage_borrowings"):
+            return qs
+        return qs.filter(user=user)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        user = self.request.user
+        
+        # Filter reservations based on user role
+        if user.is_superuser or getattr(user, "role", None) == "ADMIN":
+            all_reservations = Reservation.objects.all()
+        else:
+            all_reservations = Reservation.objects.filter(user=user)
+        
+        context['pending_count'] = all_reservations.filter(status=Reservation.StatusChoices.PENDING).count()
+        context['available_count'] = all_reservations.filter(status=Reservation.StatusChoices.AVAILABLE).count()
+        context['completed_count'] = all_reservations.filter(status=Reservation.StatusChoices.COMPLETED).count()
+        
+        return context
