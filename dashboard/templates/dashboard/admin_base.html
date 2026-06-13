@@ -1,20 +1,21 @@
 {% load static %}
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Admin Panel | BookWise{% endblock %}</title>
-    
+
     <!-- Bootstrap 5 -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    
+
     <!-- Font Awesome 6 -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
+
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    
+
     <style>
         * {
             margin: 0;
@@ -286,19 +287,19 @@
             .admin-sidebar {
                 transform: translateX(-100%);
             }
-            
+
             .admin-sidebar.mobile-open {
                 transform: translateX(0);
             }
-            
+
             .admin-main {
                 margin-left: 0;
             }
-            
+
             .mobile-menu-btn {
                 display: block;
             }
-            
+
             .admin-info {
                 display: none;
             }
@@ -326,6 +327,7 @@
         }
     </style>
 </head>
+
 <body>
 
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
@@ -347,7 +349,7 @@
             </a>
 
             <div class="nav-section-title">LIBRARY</div>
-            <a href="{% url 'books:book_list' %}" class="sidebar-link">
+            <a href="{% url 'books:admin_book_list' %}" class="sidebar-link">
                 <i class="fas fa-book"></i>
                 <span>Books</span>
             </a>
@@ -367,7 +369,6 @@
                 <i class="fas fa-coins"></i>
                 <span>Fines</span>
             </a>
-
             <div class="nav-section-title">USERS</div>
             <a href="#" class="sidebar-link">
                 <i class="fas fa-users"></i>
@@ -442,9 +443,9 @@
         const sidebar = document.getElementById('adminSidebar');
         const main = document.getElementById('adminMain');
         const toggleBtn = document.getElementById('sidebarToggle');
-        
+
         if (toggleBtn) {
-            toggleBtn.addEventListener('click', function() {
+            toggleBtn.addEventListener('click', function () {
                 sidebar.classList.toggle('collapsed');
                 main.classList.toggle('sidebar-collapsed');
                 const icon = toggleBtn.querySelector('i');
@@ -461,16 +462,16 @@
         // Mobile Menu
         const mobileBtn = document.getElementById('mobileMenuBtn');
         const overlay = document.getElementById('sidebarOverlay');
-        
+
         if (mobileBtn) {
-            mobileBtn.addEventListener('click', function() {
+            mobileBtn.addEventListener('click', function () {
                 sidebar.classList.add('mobile-open');
                 overlay.classList.add('active');
             });
         }
-        
+
         if (overlay) {
-            overlay.addEventListener('click', function() {
+            overlay.addEventListener('click', function () {
                 sidebar.classList.remove('mobile-open');
                 overlay.classList.remove('active');
             });
@@ -479,13 +480,13 @@
         // User Dropdown
         const adminDropdown = document.getElementById('adminDropdown');
         const adminUserBtn = document.getElementById('adminUserBtn');
-        
+
         if (adminUserBtn) {
-            adminUserBtn.addEventListener('click', function(e) {
+            adminUserBtn.addEventListener('click', function (e) {
                 e.stopPropagation();
                 adminDropdown.classList.toggle('open');
             });
-            document.addEventListener('click', function() {
+            document.addEventListener('click', function () {
                 adminDropdown.classList.remove('open');
             });
         }
@@ -500,4 +501,5 @@
 
     {% block extra_js %}{% endblock %}
 </body>
+
 </html>

@@ -1,0 +1,142 @@
+{% extends "dashboard/admin_base.html" %}
+
+{% block title %}Manage Books | Admin Panel{% endblock %}
+
+{% block page_title %}Manage Books{% endblock %}
+{% block page_subtitle %}Add, edit or delete books from library catalog{% endblock %}
+
+{% block admin_content %}
+<div class="container-fluid px-0">
+    <!-- Header with Add Button -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h5 class="fw-bold mb-0">
+            <i class="fas fa-book me-2"></i> Book Catalog
+        </h5>
+        <a href="{% url 'books:book_create' %}" class="btn btn-primary btn-sm">
+            <i class="fas fa-plus me-1"></i> Add New Book
+        </a>
+    </div>
+
+    <!-- Search & Filters -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-2">
+                <div class="col-md-4">
+                    <input type="search" name="search" value="{{ search }}" 
+                           class="form-control form-control-sm" placeholder="Search by title...">
+                </div>
+                <div class="col-md-3">
+                    <select name="author" class="form-select form-select-sm">
+                        <option value="">All authors</option>
+                        {% for author in authors %}
+                        <option value="{{ author }}" {% if author == selected_author %}selected{% endif %}>{{ author }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <select name="genre" class="form-select form-select-sm">
+                        <option value="">All genres</option>
+                        {% for genre in genres %}
+                        <option value="{{ genre }}" {% if genre == selected_genre %}selected{% endif %}>{{ genre }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-primary btn-sm w-100">
+                        <i class="fas fa-search"></i> Search
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Books Table -->
+    <div class="card">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>ID</th>
+                            <th>Title</th>
+                            <th>Author</th>
+                            <th>Genre</th>
+                            <th>Year</th>
+                            <th>Copies</th>
+                            <th>Available</th>
+                            <th class="text-end">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for book in books %}
+                        <tr>
+                            <td>{{ book.id }}</td>
+                            <td>
+                                <div class="fw-semibold">{{ book.title|truncatechars:40 }}</div>
+                                {% if book.isbn %}
+                                <small class="text-muted">ISBN: {{ book.isbn }}</small>
+                                {% endif %}
+                            </td>
+                            <td>{{ book.author }}</td>
+                            <td>{{ book.genre }}</td>
+                            <td>{{ book.publish_year }}</td>
+                            <td>{{ book.total_copies }}</td>
+                            <td>
+                                <span class="badge {% if book.available_copies > 0 %}bg-success{% else %}bg-danger{% endif %}">
+                                    {{ book.available_copies }}
+                                </span>
+                            </td>
+                            <td class="text-end">
+                                <a href="{% url 'books:book_detail' book.pk %}" class="btn btn-sm btn-outline-secondary" target="_blank">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                <a href="{% url 'books:book_update' book.pk %}" class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <a href="{% url 'books:book_delete' book.pk %}" class="btn btn-sm btn-outline-danger" 
+                                   onclick="return confirm('Delete this book?')">
+                                    <i class="fas fa-trash"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="8" class="text-center py-4 text-muted">
+                                No books found
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pagination -->
+    {% if is_paginated %}
+    <nav class="mt-4">
+        <ul class="pagination justify-content-center pagination-sm">
+            {% if page_obj.has_previous %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if query_params %}&{{ query_params }}{% endif %}">
+                    <i class="fas fa-chevron-left"></i>
+                </a>
+            </li>
+            {% endif %}
+            {% for num in page_obj.paginator.page_range %}
+            <li class="page-item {% if num == page_obj.number %}active{% endif %}">
+                <a class="page-link" href="?page={{ num }}{% if query_params %}&{{ query_params }}{% endif %}">{{ num }}</a>
+            </li>
+            {% endfor %}
+            {% if page_obj.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if query_params %}&{{ query_params }}{% endif %}">
+                    <i class="fas fa-chevron-right"></i>
+                </a>
+            </li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+</div>
+{% endblock %}
