@@ -1,7 +1,160 @@
-<nav class="site-navbar">
-    <a href="/">Online Library</a>
-    <a href="/books/">Books</a>
-    <a href="/borrowing/">Borrowing</a>
-    <a href="/reviews/">Reviews</a>
-    <a href="/accounts/">Accounts</a>
-</nav>
+{% load static %}
+
+<header class="modern-header" id="modernHeader">
+    <div class="header-container">
+        <!-- Logo -->
+        <a href="{% url 'dashboard:home' %}" class="logo">
+            <div class="logo-icon">
+                <i class="fas fa-book-open"></i>
+            </div>
+            <div>
+                <span class="logo-text">BookWise</span>
+                <span class="logo-badge">beta</span>
+            </div>
+        </a>
+
+        <!-- Mobile Menu Button -->
+        <button class="mobile-menu-btn" id="mobileMenuBtn">
+            <i class="fas fa-bars"></i>
+        </button>
+
+        <!-- Navigation Menu -->
+        <div class="nav-menu" id="navMenu">
+            <a href="{% url 'dashboard:home' %}" class="nav-link-custom" data-nav="home">
+                <i class="fas fa-home"></i> Home
+            </a>
+            <a href="{% url 'books:book_list' %}" class="nav-link-custom" data-nav="books">
+                <i class="fas fa-book"></i> Books
+            </a>
+            {% if user.is_authenticated %}
+            <a href="{% url 'borrowing:borrow_list' %}" class="nav-link-custom" data-nav="borrowings">
+                <i class="fas fa-hand-holding-heart"></i> My Borrowings
+            </a>
+            <a href="{% url 'dashboard:user-dashboard' %}" class="nav-link-custom" data-nav="dashboard">
+                <i class="fas fa-chart-line"></i> Dashboard
+            </a>
+            {% endif %}
+        </div>
+
+        <!-- User Section / Auth Buttons -->
+        <div>
+            {% if user.is_authenticated %}
+            <div class="user-dropdown" id="userDropdown">
+                <div class="user-btn" id="userBtn">
+                    <div class="user-avatar">
+                        {{ user.username|first|upper }}
+                    </div>
+                    <div class="user-info">
+                        <div class="user-name">{{ user.get_full_name|default:user.username|truncatechars:12 }}</div>
+                        <div class="user-role">{{ user.get_role_display }}</div>
+                    </div>
+                    <i class="fas fa-chevron-down dropdown-icon"></i>
+                </div>
+                <div class="dropdown-menu-custom">
+                    <a href="{% url 'accounts:profile' %}" class="dropdown-item-custom">
+                        <i class="fas fa-user"></i> My Profile
+                    </a>
+                    <a href="{% url 'borrowing:reservation_list' %}" class="dropdown-item-custom">
+                        <i class="fas fa-clock"></i> Reservations
+                    </a>
+                    <a href="{% url 'borrowing:fine_list' %}" class="dropdown-item-custom">
+                        <i class="fas fa-coins"></i> Fines
+                    </a>
+                    <div class="dropdown-divider-custom"></div>
+                    <form method="post" action="{% url 'accounts:logout' %}" style="margin: 0;">
+                        {% csrf_token %}
+                        <button type="submit" class="dropdown-item-custom" style="color: #ef4444;">
+                            <i class="fas fa-sign-out-alt"></i> Logout
+                        </button>
+                    </form>
+                </div>
+            </div>
+            {% else %}
+            <div class="auth-buttons">
+                <a href="{% url 'accounts:login' %}" class="btn-login">
+                    <i class="fas fa-sign-in-alt"></i> Login
+                </a>
+                <a href="{% url 'accounts:register' %}" class="btn-signup">
+                    <i class="fas fa-user-plus"></i> Sign Up
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</header>
+
+<script>
+    // Header scroll effect
+    (function() {
+        const header = document.getElementById('modernHeader');
+        if (header) {
+            window.addEventListener('scroll', function() {
+                if (window.scrollY > 50) {
+                    header.classList.add('scrolled');
+                } else {
+                    header.classList.remove('scrolled');
+                }
+            });
+        }
+    })();
+
+    // User dropdown
+    (function() {
+        const userBtn = document.getElementById('userBtn');
+        const userDropdown = document.getElementById('userDropdown');
+        
+        if (userBtn && userDropdown) {
+            userBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                userDropdown.classList.toggle('open');
+            });
+            
+            document.addEventListener('click', function() {
+                userDropdown.classList.remove('open');
+            });
+        }
+    })();
+
+    // Mobile menu
+    (function() {
+        const mobileBtn = document.getElementById('mobileMenuBtn');
+        const navMenu = document.getElementById('navMenu');
+        
+        if (mobileBtn && navMenu) {
+            mobileBtn.addEventListener('click', function() {
+                navMenu.classList.toggle('open');
+                const icon = mobileBtn.querySelector('i');
+                if (navMenu.classList.contains('open')) {
+                    icon.classList.remove('fa-bars');
+                    icon.classList.add('fa-times');
+                } else {
+                    icon.classList.remove('fa-times');
+                    icon.classList.add('fa-bars');
+                }
+            });
+            
+            document.querySelectorAll('.nav-link-custom').forEach(link => {
+                link.addEventListener('click', () => {
+                    navMenu.classList.remove('open');
+                    if (mobileBtn.querySelector('i')) {
+                        mobileBtn.querySelector('i').classList.remove('fa-times');
+                        mobileBtn.querySelector('i').classList.add('fa-bars');
+                    }
+                });
+            });
+        }
+    })();
+
+    // Active navigation highlight
+    (function() {
+        const currentPath = window.location.pathname;
+        document.querySelectorAll('.nav-link-custom').forEach(link => {
+            const href = link.getAttribute('href');
+            if (href && currentPath === href) {
+                link.classList.add('active');
+            } else if (href && href !== '/' && href !== '/en/' && currentPath.startsWith(href) && href !== '/') {
+                link.classList.add('active');
+            }
+        });
+    })();
+</script>
