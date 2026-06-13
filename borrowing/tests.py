@@ -3,10 +3,11 @@ from django.contrib.messages import get_messages
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
+from django.core import mail
 
 from accounts.models import CustomUser
 from books.models import Book
-from borrowing.models import Borrow
+from borrowing.models import Borrow, Reservation
 
 
 class BorrowingSystemTests(TestCase):
@@ -54,8 +55,11 @@ class BorrowingSystemTests(TestCase):
         # Setup URLs
         self.list_url = reverse("borrowing:borrow_list")
         self.history_url = reverse("borrowing:borrow_history")
+        self.reservations_list_url = reverse("borrowing:reservation_list")
         self.borrow_stock_url = reverse("borrowing:borrow_book", kwargs={"book_id": self.book_in_stock.pk})
         self.borrow_out_url = reverse("borrowing:borrow_book", kwargs={"book_id": self.book_out_of_stock.pk})
+        self.reserve_stock_url = reverse("borrowing:reserve_book", kwargs={"book_id": self.book_in_stock.pk})
+        self.reserve_out_url = reverse("borrowing:reserve_book", kwargs={"book_id": self.book_out_of_stock.pk})
 
     def test_default_due_date_calculation(self):
         self.client.login(username="member_user", password="password123")
@@ -236,3 +240,94 @@ class BorrowingSystemTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(response.context["borrowings"]), 1)
         self.assertEqual(response.context["borrowings"][0].book, self.book_out_of_stock)
+
+    def test_cannot_reserve_in_stock_book(self):
+        self.client.login(username="member_user", password="password123")
+        
+        # Attempt to reserve an in-stock book
+        response = self.client.post(self.reserve_stock_url)
+        self.assertRedirects(response, reverse("books:book_detail", kwargs={"pk": self.book_in_stock.pk}))
+        
+        # Verify no Reservation record created
+        self.assertFalse(Reservation.objects.filter(book=self.book_in_stock, user=self.member_user).exists())
+
+    def test_reserve_out_of_stock_book(self):
+        self.client.login(username="member_user", password="password123")
+        
+        # Reserve out of stock book
+        response = self.client.post(self.reserve_out_url)
+        self.assertRedirects(response, self.reservations_list_url)
+        
+        # Verify Reservation is created with PENDING status
+        self.assertTrue(Reservation.objects.filter(book=self.book_out_of_stock, user=self.member_user, status=Reservation.StatusChoices.PENDING).exists())
+
+    def test_returning_book_notifies_oldest_reservation(self):
+        # Create reservations
+        res_oldest = Reservation.objects.create(
+            user=self.member_user,
+            book=self.book_out_of_stock,
+            status=Reservation.StatusChoices.PENDING,
+            reservation_date=timezone.now() - timedelta(hours=2)
+        )
+        res_newest = Reservation.objects.create(
+            user=self.other_member_user,
+            book=self.book_out_of_stock,
+            status=Reservation.StatusChoices.PENDING,
+            reservation_date=timezone.now() - timedelta(hours=1)
+        )
+        
+        # Create active borrow on the same book
+        borrow = Borrow.objects.create(
+            user=self.admin_user,
+            book=self.book_out_of_stock,
+            status=Borrow.StatusChoices.BORROWED,
+            due_date=timezone.now() + timedelta(days=14)
+        )
+        
+        # Log in and return book
+        self.client.login(username="admin_user", password="password123")
+        return_url = reverse("borrowing:return_book", kwargs={"pk": borrow.pk})
+        
+        # Clear outbox
+        mail.outbox = []
+        
+        response = self.client.post(return_url)
+        self.assertRedirects(response, self.list_url)
+        
+        # Verify oldest reservation is now AVAILABLE
+        res_oldest.refresh_from_db()
+        self.assertEqual(res_oldest.status, Reservation.StatusChoices.AVAILABLE)
+        
+        # Verify newest reservation is still PENDING
+        res_newest.refresh_from_db()
+        self.assertEqual(res_newest.status, Reservation.StatusChoices.PENDING)
+        
+        # Verify notification email sent
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, [self.member_user.email])
+        self.assertIn("Reserved Book Available", mail.outbox[0].subject)
+
+    def test_borrowing_available_reserved_book_completes_reservation(self):
+        # Setup book and available reservation
+        self.book_out_of_stock.available_copies = 1
+        self.book_out_of_stock.save()
+        
+        res = Reservation.objects.create(
+            user=self.member_user,
+            book=self.book_out_of_stock,
+            status=Reservation.StatusChoices.AVAILABLE
+        )
+        
+        self.client.login(username="member_user", password="password123")
+        
+        # Borrow book
+        response = self.client.post(self.borrow_out_url)
+        self.assertRedirects(response, self.list_url)
+        
+        # Verify copies decremented
+        self.book_out_of_stock.refresh_from_db()
+        self.assertEqual(self.book_out_of_stock.available_copies, 0)
+        
+        # Verify reservation status is COMPLETED
+        res.refresh_from_db()
+        self.assertEqual(res.status, Reservation.StatusChoices.COMPLETED)

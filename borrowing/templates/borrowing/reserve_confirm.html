@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="py-5 bg-light min-vh-100">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-12 col-md-8 col-lg-6">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body p-4 p-md-5">
+                        <h1 class="h3 mb-3">Confirm Reservation</h1>
+                        
+                        <div class="mb-4">
+                            <p class="text-muted mb-1">You are reserving:</p>
+                            <h2 class="h5 fw-bold text-dark mb-1">{{ book.title }}</h2>
+                            <p class="text-muted">by {{ book.author }}</p>
+                        </div>
+
+                        <div class="alert alert-warning border-0 bg-warning-subtle mb-4">
+                            <div class="d-flex align-items-center">
+                                <div>
+                                    <div class="fw-semibold text-warning-emphasis">Lending Notice</div>
+                                    <div class="small text-warning-emphasis">
+                                        This book is currently out of stock. By placing a reservation, you will be placed on the waitlist and notified immediately as soon as a copy is returned.
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <form method="post">
+                            {% csrf_token %}
+                            <div class="d-flex flex-column flex-sm-row gap-2">
+                                <button type="submit" class="btn btn-warning text-dark fw-semibold">Confirm Reservation</button>
+                                <a href="{% url 'books:book_detail' book.pk %}" class="btn btn-outline-secondary">Cancel</a>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

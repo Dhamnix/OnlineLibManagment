@@ -6,9 +6,12 @@ from django.urls import reverse_lazy
 from django.utils import timezone
 from django.views import View
 from django.views.generic import ListView
+from django.core.exceptions import ValidationError
+from django.core.mail import send_mail
+from django.conf import settings
 
 from books.models import Book
-from .models import Borrow
+from .models import Borrow, Reservation
 
 
 class BorrowListView(LoginRequiredMixin, ListView):
@@ -42,11 +45,23 @@ class BorrowBookView(LoginRequiredMixin, View):
             with transaction.atomic():
                 # Lock the book row to prevent race conditions
                 book_to_borrow = Book.objects.select_for_update().get(pk=book_id)
-                if book_to_borrow.available_copies <= 0:
+                
+                # Check if user has an active reservation that is AVAILABLE
+                has_available_reservation = Reservation.objects.filter(
+                    user=request.user,
+                    book=book_to_borrow,
+                    status=Reservation.StatusChoices.AVAILABLE
+                ).exists()
+
+                # If user doesn't have an available reservation, check standard stock limit
+                if not has_available_reservation and book_to_borrow.available_copies <= 0:
                     messages.error(request, "This book is currently out of stock and cannot be borrowed.", extra_tags="danger")
                     return redirect("books:book_detail", pk=book_id)
                 
-                # Reduce available copies
+                # If they borrow via available reservation, decrement copies if they hadn't been decremented yet,
+                # or if standard borrow, decrement copies.
+                # Actually, standard flow: available_copies was already incremented when the book was returned.
+                # So we decrement available_copies now.
                 book_to_borrow.available_copies -= 1
                 book_to_borrow.save()
                 
@@ -56,6 +71,13 @@ class BorrowBookView(LoginRequiredMixin, View):
                     book=book_to_borrow,
                     status=Borrow.StatusChoices.BORROWED
                 )
+
+                # Mark reservation as COMPLETED
+                Reservation.objects.filter(
+                    user=request.user,
+                    book=book_to_borrow,
+                    status__in=[Reservation.StatusChoices.PENDING, Reservation.StatusChoices.AVAILABLE]
+                ).update(status=Reservation.StatusChoices.COMPLETED)
                 
             messages.success(request, f"You have successfully borrowed '{book.title}'.")
             return redirect("borrowing:borrow_list")
@@ -88,6 +110,36 @@ class ReturnBookView(LoginRequiredMixin, View):
                 book = Book.objects.select_for_update().get(pk=borrow.book.pk)
                 book.available_copies += 1
                 book.save()
+
+                # Notify oldest pending reservation if it exists
+                oldest_res = Reservation.objects.filter(
+                    book=book,
+                    status=Reservation.StatusChoices.PENDING
+                ).order_by("reservation_date").first()
+
+                if oldest_res:
+                    oldest_res.status = Reservation.StatusChoices.AVAILABLE
+                    oldest_res.save()
+
+                    # Send notification email
+                    subject = f"Reserved Book Available: {book.title}"
+                    message = (
+                        f"Hello {oldest_res.user.username},\n\n"
+                        f"The book '{book.title}' you reserved is now available for borrowing!\n"
+                        f"Please visit the library system to check it out."
+                    )
+                    send_mail(
+                        subject,
+                        message,
+                        getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@library.com"),
+                        [oldest_res.user.email],
+                        fail_silently=True
+                    )
+                    
+                    messages.info(
+                        request,
+                        f"Notification: Reserving user '{oldest_res.user.username}' has been notified that '{book.title}' is available."
+                    )
                 
             messages.success(request, f"You have successfully returned '{borrow.book.title}'.")
         except Exception:
@@ -126,7 +178,86 @@ class BorrowHistoryView(LoginRequiredMixin, ListView):
         context = super().get_context_data(**kwargs)
         status = self.request.GET.get("status", "").strip().lower()
         context["current_status"] = status
-        
-        # Add a helper for templates to check if a borrowing is overdue
         context["now"] = timezone.now()
         return context
+
+
+class ReserveBookView(LoginRequiredMixin, View):
+    def get(self, request, book_id):
+        book = get_object_or_404(Book, pk=book_id)
+        if book.available_copies > 0:
+            messages.error(request, "You can only reserve books that are currently out of stock.", extra_tags="danger")
+            return redirect("books:book_detail", pk=book_id)
+        
+        return render(request, "borrowing/reserve_confirm.html", {"book": book})
+
+    def post(self, request, book_id):
+        book = get_object_or_404(Book, pk=book_id)
+        
+        # Double check availability under lock
+        try:
+            with transaction.atomic():
+                book_to_reserve = Book.objects.select_for_update().get(pk=book_id)
+                if book_to_reserve.available_copies > 0:
+                    messages.error(request, "You can only reserve books that are currently out of stock.", extra_tags="danger")
+                    return redirect("books:book_detail", pk=book_id)
+                
+                # Check if user already has an active reservation
+                existing = Reservation.objects.filter(
+                    user=request.user,
+                    book=book_to_reserve,
+                    status__in=[Reservation.StatusChoices.PENDING, Reservation.StatusChoices.AVAILABLE]
+                ).exists()
+
+                if existing:
+                    messages.warning(request, "You already have an active reservation for this book.")
+                    return redirect("borrowing:reservation_list")
+
+                # Create Reservation
+                res = Reservation(
+                    user=request.user,
+                    book=book_to_reserve,
+                    status=Reservation.StatusChoices.PENDING
+                )
+                res.clean()
+                res.save()
+                
+            messages.success(request, f"You have successfully reserved '{book.title}'.")
+            return redirect("borrowing:reservation_list")
+        except ValidationError as e:
+            messages.error(request, e.message, extra_tags="danger")
+            return redirect("books:book_detail", pk=book_id)
+        except Exception:
+            messages.error(request, "An error occurred while placing the reservation. Please try again.", extra_tags="danger")
+            return redirect("books:book_detail", pk=book_id)
+
+
+class ReservationListView(LoginRequiredMixin, ListView):
+    model = Reservation
+    template_name = "borrowing/reservation_list.html"
+    context_object_name = "reservations"
+    paginate_by = 10
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.is_superuser or getattr(user, "role", None) == "ADMIN" or user.has_perm("borrowing.manage_borrowings"):
+            return Reservation.objects.all().order_by("-reservation_date")
+        return Reservation.objects.filter(user=user).order_by("-reservation_date")
+
+
+class CancelReservationView(LoginRequiredMixin, View):
+    def post(self, request, pk):
+        user = request.user
+        if user.is_superuser or getattr(user, "role", None) == "ADMIN" or user.has_perm("borrowing.manage_borrowings"):
+            res = get_object_or_404(Reservation, pk=pk)
+        else:
+            res = get_object_or_404(Reservation, pk=pk, user=user)
+
+        if res.status != Reservation.StatusChoices.PENDING and res.status != Reservation.StatusChoices.AVAILABLE:
+            messages.warning(request, "This reservation cannot be cancelled.")
+            return redirect("borrowing:reservation_list")
+
+        res.status = Reservation.StatusChoices.CANCELLED
+        res.save()
+        messages.success(request, f"Reservation for '{res.book.title}' has been successfully cancelled.")
+        return redirect("borrowing:reservation_list")

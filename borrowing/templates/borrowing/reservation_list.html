@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="py-5 bg-light min-vh-100">
+    <div class="container">
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags|default:'info' }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4">
+            <div>
+                <h1 class="h3 mb-2">My Reservations</h1>
+                <p class="text-muted mb-0">
+                    {% if user.role == 'ADMIN' or user.is_superuser %}
+                        Review and manage all user reservations in the system.
+                    {% else %}
+                        Monitor your reservations status and borrow available books.
+                    {% endif %}
+                </p>
+            </div>
+            <a href="{% url 'books:book_list' %}" class="btn btn-primary mt-3 mt-md-0">Browse Books</a>
+        </div>
+
+        <div class="card border-0 shadow-sm">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                {% if user.role == 'ADMIN' or user.is_superuser %}
+                                    <th>User</th>
+                                {% endif %}
+                                <th>Book Title</th>
+                                <th>Reservation Date</th>
+                                <th>Status</th>
+                                <th class="text-end">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for res in reservations %}
+                                <tr>
+                                    {% if user.role == 'ADMIN' or user.is_superuser %}
+                                        <td>
+                                            <div class="fw-semibold">{{ res.user.username }}</div>
+                                            <div class="small text-muted">{{ res.user.email }}</div>
+                                        </td>
+                                    {% endif %}
+                                    <td>
+                                        <div class="fw-semibold text-dark">{{ res.book.title }}</div>
+                                        <div class="small text-muted">by {{ res.book.author }}</div>
+                                    </td>
+                                    <td>{{ res.reservation_date|date:"M d, Y, g:i a" }}</td>
+                                    <td>
+                                        {% if res.status == 'PENDING' %}
+                                            <span class="badge bg-warning text-dark">Pending</span>
+                                        {% elif res.status == 'AVAILABLE' %}
+                                            <span class="badge bg-success">Available</span>
+                                        {% elif res.status == 'COMPLETED' %}
+                                            <span class="badge bg-info text-dark">Completed</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">Cancelled</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end">
+                                        <div class="d-flex justify-content-end gap-2">
+                                            {% if res.status == 'AVAILABLE' %}
+                                                <a href="{% url 'borrowing:borrow_book' res.book.pk %}" class="btn btn-sm btn-primary">Borrow Now</a>
+                                            {% endif %}
+                                            {% if res.status == 'PENDING' or res.status == 'AVAILABLE' %}
+                                                <form method="post" action="{% url 'borrowing:cancel_reservation' res.pk %}" class="d-inline">
+                                                    {% csrf_token %}
+                                                    <button type="submit" class="btn btn-sm btn-outline-danger">Cancel</button>
+                                                </form>
+                                            {% else %}
+                                                <button class="btn btn-sm btn-light" disabled>Closed</button>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% empty %}
+                                <tr>
+                                    <td colspan="{% if user.role == 'ADMIN' or user.is_superuser %}5{% else %}4{% endif %}" class="text-center py-5 text-muted">
+                                        No reservation records found.
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        {% if is_paginated %}
+            <nav class="mt-4" aria-label="Pagination">
+                <ul class="pagination justify-content-center">
+                    {% if page_obj.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}">Previous</a>
+                        </li>
+                    {% else %}
+                        <li class="page-item disabled">
+                            <span class="page-link">Previous</span>
+                        </li>
+                    {% endif %}
+
+                    {% for num in page_obj.paginator.page_range %}
+                        {% if page_obj.number == num %}
+                            <li class="page-item active" aria-current="page">
+                                <span class="page-link">{{ num }}</span>
+                            </li>
+                        {% else %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+                            </li>
+                        {% endif %}
+                    {% endfor %}
+
+                    {% if page_obj.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.next_page_number }}">Next</a>
+                        </li>
+                    {% else %}
+                        <li class="page-item disabled">
+                            <span class="page-link">Next</span>
+                        </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        {% endif %}
+    </div>
+</section>
+{% endblock %}
