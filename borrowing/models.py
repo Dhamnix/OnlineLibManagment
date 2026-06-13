@@ -79,3 +79,25 @@ class Reservation(models.Model):
         # Enforce that pending reservations can only be created when available_copies is 0
         if self.pk is None and self.status == self.StatusChoices.PENDING and self.book.available_copies > 0:
             raise ValidationError("You can only reserve books that are currently out of stock.")
+
+
+class Fine(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="fines",
+    )
+    borrow = models.OneToOneField(
+        Borrow,
+        on_delete=models.CASCADE,
+        related_name="fine",
+    )
+    amount = models.DecimalField(max_digits=6, decimal_places=2, default=0.00)
+    is_paid = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ["is_paid", "-amount"]
+
+    def __str__(self):
+        status = "Paid" if self.is_paid else "Unpaid"
+        return f"Fine of {self.amount} for {self.user.username} ({status})"

@@ -11,7 +11,7 @@ from django.core.mail import send_mail
 from django.conf import settings
 
 from books.models import Book
-from .models import Borrow, Reservation
+from .models import Borrow, Reservation, Fine
 
 
 class BorrowListView(LoginRequiredMixin, ListView):
@@ -58,10 +58,7 @@ class BorrowBookView(LoginRequiredMixin, View):
                     messages.error(request, "This book is currently out of stock and cannot be borrowed.", extra_tags="danger")
                     return redirect("books:book_detail", pk=book_id)
                 
-                # If they borrow via available reservation, decrement copies if they hadn't been decremented yet,
-                # or if standard borrow, decrement copies.
-                # Actually, standard flow: available_copies was already incremented when the book was returned.
-                # So we decrement available_copies now.
+                # Reduce available copies
                 book_to_borrow.available_copies -= 1
                 book_to_borrow.save()
                 
@@ -110,6 +107,10 @@ class ReturnBookView(LoginRequiredMixin, View):
                 book = Book.objects.select_for_update().get(pk=borrow.book.pk)
                 book.available_copies += 1
                 book.save()
+
+                # Calculate final fine and save it
+                from .services import create_or_update_fine_for_borrow
+                create_or_update_fine_for_borrow(borrow)
 
                 # Notify oldest pending reservation if it exists
                 oldest_res = Reservation.objects.filter(
@@ -194,7 +195,6 @@ class ReserveBookView(LoginRequiredMixin, View):
     def post(self, request, book_id):
         book = get_object_or_404(Book, pk=book_id)
         
-        # Double check availability under lock
         try:
             with transaction.atomic():
                 book_to_reserve = Book.objects.select_for_update().get(pk=book_id)
@@ -261,3 +261,47 @@ class CancelReservationView(LoginRequiredMixin, View):
         res.save()
         messages.success(request, f"Reservation for '{res.book.title}' has been successfully cancelled.")
         return redirect("borrowing:reservation_list")
+
+
+class FineListView(LoginRequiredMixin, ListView):
+    model = Fine
+    template_name = "borrowing/fine_list.html"
+    context_object_name = "fines"
+    paginate_by = 10
+
+    def get_queryset(self):
+        user = self.request.user
+        
+        # Dynamically calculate overdue fines to show accurate numbers to the user
+        if user.is_superuser or getattr(user, "role", None) == "ADMIN" or user.has_perm("borrowing.manage_borrowings"):
+            from .services import update_all_overdue_fines
+            update_all_overdue_fines()
+            return Fine.objects.all()
+        else:
+            from .services import create_or_update_fine_for_borrow
+            active_overdue = Borrow.objects.filter(
+                user=user,
+                status=Borrow.StatusChoices.BORROWED,
+                due_date__lt=timezone.now()
+            )
+            for borrow in active_overdue:
+                create_or_update_fine_for_borrow(borrow)
+            return Fine.objects.filter(user=user)
+
+
+class PayFineView(LoginRequiredMixin, View):
+    def post(self, request, pk):
+        user = request.user
+        if user.is_superuser or getattr(user, "role", None) == "ADMIN" or user.has_perm("borrowing.manage_borrowings"):
+            fine = get_object_or_404(Fine, pk=pk)
+        else:
+            fine = get_object_or_404(Fine, pk=pk, user=user)
+
+        if fine.is_paid:
+            messages.warning(request, "This fine has already been paid.")
+            return redirect("borrowing:fine_list")
+
+        fine.is_paid = True
+        fine.save()
+        messages.success(request, f"Fine of {fine.amount} for '{fine.borrow.book.title}' has been successfully paid.")
+        return redirect("borrowing:fine_list")

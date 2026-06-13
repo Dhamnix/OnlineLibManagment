@@ -1,4 +1,5 @@
 from datetime import timedelta
+from decimal import Decimal
 from django.contrib.messages import get_messages
 from django.test import TestCase
 from django.urls import reverse
@@ -7,7 +8,8 @@ from django.core import mail
 
 from accounts.models import CustomUser
 from books.models import Book
-from borrowing.models import Borrow, Reservation
+from borrowing.models import Borrow, Reservation, Fine
+from borrowing.services import calculate_fine_for_borrow, create_or_update_fine_for_borrow
 
 
 class BorrowingSystemTests(TestCase):
@@ -56,6 +58,7 @@ class BorrowingSystemTests(TestCase):
         self.list_url = reverse("borrowing:borrow_list")
         self.history_url = reverse("borrowing:borrow_history")
         self.reservations_list_url = reverse("borrowing:reservation_list")
+        self.fines_list_url = reverse("borrowing:fine_list")
         self.borrow_stock_url = reverse("borrowing:borrow_book", kwargs={"book_id": self.book_in_stock.pk})
         self.borrow_out_url = reverse("borrowing:borrow_book", kwargs={"book_id": self.book_out_of_stock.pk})
         self.reserve_stock_url = reverse("borrowing:reserve_book", kwargs={"book_id": self.book_in_stock.pk})
@@ -331,3 +334,74 @@ class BorrowingSystemTests(TestCase):
         # Verify reservation status is COMPLETED
         res.refresh_from_db()
         self.assertEqual(res.status, Reservation.StatusChoices.COMPLETED)
+
+    def test_fine_calculation(self):
+        # Create a borrow record that is 5 days overdue
+        borrow_overdue = Borrow.objects.create(
+            user=self.member_user,
+            book=self.book_in_stock,
+            status=Borrow.StatusChoices.BORROWED,
+            due_date=timezone.now() - timedelta(days=5)
+        )
+        
+        # Calculate fine using service (FINE_PER_DAY defaults to 1.00)
+        amount = calculate_fine_for_borrow(borrow_overdue)
+        self.assertEqual(amount, Decimal("5.00"))
+
+        # Create borrow that is NOT overdue
+        borrow_active = Borrow.objects.create(
+            user=self.member_user,
+            book=self.book_in_stock,
+            status=Borrow.StatusChoices.BORROWED,
+            due_date=timezone.now() + timedelta(days=5)
+        )
+        amount_active = calculate_fine_for_borrow(borrow_active)
+        self.assertEqual(amount_active, Decimal("0.00"))
+
+    def test_fine_persisted_on_return(self):
+        # Create overdue borrow
+        borrow = Borrow.objects.create(
+            user=self.member_user,
+            book=self.book_in_stock,
+            status=Borrow.StatusChoices.BORROWED,
+            due_date=timezone.now() - timedelta(days=3)
+        )
+        self.book_in_stock.available_copies = 1
+        self.book_in_stock.save()
+
+        # Log in and return book
+        self.client.login(username="member_user", password="password123")
+        return_url = reverse("borrowing:return_book", kwargs={"pk": borrow.pk})
+        
+        response = self.client.post(return_url)
+        self.assertRedirects(response, self.list_url)
+
+        # Verify Fine was created with correct amount and is unpaid
+        fine = Fine.objects.get(borrow=borrow)
+        self.assertEqual(fine.amount, Decimal("3.00"))
+        self.assertFalse(fine.is_paid)
+
+    def test_pay_fine_success(self):
+        borrow = Borrow.objects.create(
+            user=self.member_user,
+            book=self.book_in_stock,
+            status=Borrow.StatusChoices.RETURNED,
+            due_date=timezone.now() - timedelta(days=3),
+            return_date=timezone.now()
+        )
+        fine = Fine.objects.create(
+            user=self.member_user,
+            borrow=borrow,
+            amount=Decimal("3.00"),
+            is_paid=False
+        )
+
+        self.client.login(username="member_user", password="password123")
+        pay_url = reverse("borrowing:pay_fine", kwargs={"pk": fine.pk})
+        
+        response = self.client.post(pay_url)
+        self.assertRedirects(response, self.fines_list_url)
+
+        # Verify fine is paid
+        fine.refresh_from_db()
+        self.assertTrue(fine.is_paid)
