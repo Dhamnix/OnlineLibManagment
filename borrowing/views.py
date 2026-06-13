@@ -357,3 +357,52 @@ class BorrowListView(LoginRequiredMixin, ListView):
         context['now'] = now
         
         return context
+    
+    
+class FineListView(LoginRequiredMixin, ListView):
+    model = Fine
+    template_name = "borrowing/fine_list.html"
+    context_object_name = "fines"
+    paginate_by = 10
+
+    def get_queryset(self):
+        user = self.request.user
+        
+        # Dynamically calculate overdue fines to show accurate numbers
+        if user.is_superuser or getattr(user, "role", None) == "ADMIN" or user.has_perm("borrowing.manage_borrowings"):
+            from .services import update_all_overdue_fines
+            update_all_overdue_fines()
+            return Fine.objects.select_related("borrow", "user", "borrow__book").all()
+        else:
+            from .services import create_or_update_fine_for_borrow
+            active_overdue = Borrow.objects.filter(
+                user=user,
+                status=Borrow.StatusChoices.BORROWED,
+                due_date__lt=timezone.now()
+            )
+            for borrow in active_overdue:
+                create_or_update_fine_for_borrow(borrow)
+            return Fine.objects.select_related("borrow", "borrow__book").filter(user=user)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        user = self.request.user
+        
+        # Filter fines based on user role
+        if user.is_superuser or getattr(user, "role", None) == "ADMIN":
+            all_fines = Fine.objects.all()
+        else:
+            all_fines = Fine.objects.filter(user=user)
+        
+        # Calculate statistics
+        unpaid_fines = all_fines.filter(is_paid=False)
+        paid_fines = all_fines.filter(is_paid=True)
+        
+        from django.db.models import Sum
+        context['total_unpaid_amount'] = unpaid_fines.aggregate(total=Sum('amount'))['total'] or 0
+        context['total_paid_amount'] = paid_fines.aggregate(total=Sum('amount'))['total'] or 0
+        context['unpaid_count'] = unpaid_fines.count()
+        context['paid_count'] = paid_fines.count()
+        context['now'] = timezone.now()
+        
+        return context
