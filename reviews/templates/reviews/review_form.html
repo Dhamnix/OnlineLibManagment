@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+
+{% block title %}
+  {% if is_update %}
+    Edit Review - {{ book.title }}
+  {% else %}
+    Add Review - {{ book.title }}
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="container my-5">
+  <div class="row justify-content-center">
+    <div class="col-md-8">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <h2 class="card-title mb-4">
+            {% if is_update %}
+              Edit Your Review
+            {% else %}
+              Add Your Review
+            {% endif %}
+          </h2>
+
+          <!-- Book Info -->
+          <div class="mb-4 p-3 bg-light rounded">
+            <div class="row align-items-center">
+              {% if book.cover_image %}
+                <div class="col-md-3">
+                  <img 
+                    src="{{ book.cover_image.url }}" 
+                    alt="{{ book.title }}" 
+                    class="img-fluid rounded"
+                  >
+                </div>
+                <div class="col-md-9">
+              {% else %}
+                <div class="col-md-12">
+              {% endif %}
+                  <h5>{{ book.title }}</h5>
+                  <p class="mb-0 text-muted">{{ book.author }}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Review Form -->
+          <form method="post" class="needs-validation">
+            {% csrf_token %}
+
+            <!-- Rating Field -->
+            <div class="mb-4">
+              <label class="form-label fw-bold">Rating *</label>
+              <div class="rating-options">
+                {% for value, label in form.rating.field.choices %}
+                  <div class="form-check">
+                    <input 
+                      class="form-check-input" 
+                      type="radio" 
+                      id="rating_{{ value }}" 
+                      name="rating" 
+                      value="{{ value }}"
+                      {% if form.rating.value == value|stringformat:'s' %}checked{% endif %}
+                      required
+                    >
+                    <label class="form-check-label" for="rating_{{ value }}">
+                      <span class="text-warning">
+                        {% for star in "12345" %}
+                          {% if forloop.counter <= value|add:0 %}
+                            ★
+                          {% else %}
+                            ☆
+                          {% endif %}
+                        {% endfor %}
+                      </span>
+                      {{ label }}
+                    </label>
+                  </div>
+                {% endfor %}
+              </div>
+              {% if form.rating.errors %}
+                <div class="invalid-feedback d-block">
+                  {{ form.rating.errors.0 }}
+                </div>
+              {% endif %}
+            </div>
+
+            <!-- Comment Field -->
+            <div class="mb-4">
+              <label for="{{ form.comment.id_for_label }}" class="form-label">
+                {{ form.comment.label }}
+              </label>
+              {% if form.comment.errors %}
+                <div class="text-danger small mb-2">
+                  {{ form.comment.errors.0 }}
+                </div>
+              {% endif %}
+              {{ form.comment }}
+            </div>
+
+            <!-- Buttons -->
+            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+              <a 
+                href="{% url 'books:book_detail' book.pk %}" 
+                class="btn btn-outline-secondary"
+              >
+                Cancel
+              </a>
+              <button type="submit" class="btn btn-primary">
+                {% if is_update %}
+                  Update Review
+                {% else %}
+                  Submit Review
+                {% endif %}
+              </button>
+            </div>
+          </form>
+
+          <!-- Delete Button (for edit) -->
+          {% if is_update %}
+            <hr class="my-4">
+            <form 
+              method="post" 
+              action="{% url 'reviews:review_delete' book.pk %}" 
+              style="display: inline;"
+              onsubmit="return confirm('Are you sure you want to delete this review?');"
+            >
+              {% csrf_token %}
+              <button type="submit" class="btn btn-outline-danger w-100">
+                Delete Review
+              </button>
+            </form>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  .rating-options {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .rating-options .form-check-label {
+    cursor: pointer;
+    font-size: 1.1rem;
+  }
+  
+  .rating-options .form-check-input {
+    cursor: pointer;
+    width: 1.25em;
+    height: 1.25em;
+  }
+  
+  .text-warning {
+    color: #ffc107;
+    font-size: 1.5rem;
+    letter-spacing: 2px;
+  }
+</style>
+{% endblock %}

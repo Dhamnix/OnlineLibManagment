@@ -1,0 +1,184 @@
+{% load static %}
+
+<!-- Reviews Section -->
+<div class="reviews-section mt-5">
+  <h3 class="mb-4">
+    Reviews & Ratings
+    <span class="badge bg-primary">
+      {{ reviews.count }} Review{{ reviews.count|pluralize }}
+    </span>
+  </h3>
+
+  <!-- Average Rating Display -->
+  {% if average_rating %}
+    <div class="mb-4 p-3 bg-light rounded">
+      <div class="row align-items-center">
+        <div class="col-md-6">
+          <div class="d-flex align-items-center">
+            <span class="text-warning" style="font-size: 2rem; letter-spacing: 3px;">
+              {% for star in "12345" %}
+                {% if forloop.counter <= average_rating|add:0 %}
+                  ★
+                {% elif forloop.counter|add:-0.5 <= average_rating %}
+                  ⭐
+                {% else %}
+                  ☆
+                {% endif %}
+              {% endfor %}
+            </span>
+            <div class="ms-3">
+              <h5 class="mb-0">{{ average_rating }} out of 5</h5>
+              <small class="text-muted">Based on {{ reviews.count }} review{{ reviews.count|pluralize }}</small>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-6 text-md-end mt-3 mt-md-0">
+          {% if user.is_authenticated %}
+            {% if user_review %}
+              <a 
+                href="{% url 'reviews:review_edit' book.pk %}" 
+                class="btn btn-sm btn-outline-primary"
+              >
+                Edit Your Review
+              </a>
+            {% else %}
+              <a 
+                href="{% url 'reviews:review_add' book.pk %}" 
+                class="btn btn-sm btn-primary"
+              >
+                Add Your Review
+              </a>
+            {% endif %}
+          {% else %}
+            <p class="text-muted">
+              <a href="{% url 'accounts:login' %}">Log in</a> to add a review
+            </p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  {% else %}
+    <div class="alert alert-info">
+      <p>No reviews yet.</p>
+      {% if user.is_authenticated %}
+        <a 
+          href="{% url 'reviews:review_add' book.pk %}" 
+          class="btn btn-sm btn-primary mt-2"
+        >
+          Be the first to review this book
+        </a>
+      {% else %}
+        <p class="mt-2">
+          <a href="{% url 'accounts:login' %}">Log in</a> to add a review
+        </p>
+      {% endif %}
+    </div>
+  {% endif %}
+
+  <!-- Reviews List -->
+  {% if reviews %}
+    <div class="reviews-list mt-4">
+      {% for review in reviews %}
+        <div class="review-card mb-4 p-4 border rounded-lg" style="border-left: 4px solid #ffc107;">
+          <!-- Review Header -->
+          <div class="d-flex justify-content-between align-items-start mb-3">
+            <div>
+              <h6 class="mb-1">
+                <strong>{{ review.user.get_full_name|default:review.user.username }}</strong>
+              </h6>
+              <small class="text-muted">
+                {{ review.created_at|date:"M d, Y" }}
+                {% if review.created_at != review.updated_at %}
+                  <span class="badge bg-secondary">Edited</span>
+                {% endif %}
+              </small>
+            </div>
+            
+            <!-- Edit/Delete Buttons (only for owner or admin) -->
+            {% if user.is_authenticated and user == review.user %}
+              <div class="dropdown">
+                <button 
+                  class="btn btn-sm btn-light" 
+                  type="button" 
+                  id="dropdownMenu{{ review.pk }}" 
+                  data-bs-toggle="dropdown"
+                >
+                  <i class="fas fa-ellipsis-v"></i>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="dropdownMenu{{ review.pk }}">
+                  <li>
+                    <a 
+                      class="dropdown-item" 
+                      href="{% url 'reviews:review_edit' book.pk %}"
+                    >
+                      Edit
+                    </a>
+                  </li>
+                  <li>
+                    <form 
+                      method="post" 
+                      action="{% url 'reviews:review_delete' book.pk %}"
+                      style="display: inline;"
+                      onsubmit="return confirm('Delete this review?');"
+                    >
+                      {% csrf_token %}
+                      <button type="submit" class="dropdown-item text-danger">
+                        Delete
+                      </button>
+                    </form>
+                  </li>
+                </ul>
+              </div>
+            {% endif %}
+          </div>
+
+          <!-- Rating Stars -->
+          <div class="mb-3">
+            <span class="text-warning" style="font-size: 1.3rem; letter-spacing: 2px;">
+              {% for star in "12345" %}
+                {% if forloop.counter <= review.rating %}
+                  ★
+                {% else %}
+                  ☆
+                {% endif %}
+              {% endfor %}
+            </span>
+            <span class="ms-2 fw-bold">{{ review.rating }}/5</span>
+          </div>
+
+          <!-- Comment -->
+          {% if review.comment %}
+            <p class="review-comment">{{ review.comment }}</p>
+          {% else %}
+            <p class="text-muted fst-italic">No comment provided</p>
+          {% endif %}
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+</div>
+
+<style>
+  .review-card {
+    background-color: #fff;
+    transition: box-shadow 0.3s ease;
+  }
+  
+  .review-card:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  }
+  
+  .review-comment {
+    color: #333;
+    line-height: 1.6;
+    margin: 0;
+  }
+  
+  .text-warning {
+    color: #ffc107;
+  }
+  
+  .dropdown-menu {
+    min-width: 100px;
+  }
+</style>

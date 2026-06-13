@@ -82,6 +82,27 @@ class BookDetailView(DetailView):
     def get_object(self, queryset=None):
         return get_object_or_404(Book, pk=self.kwargs.get("pk"))
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        book = self.get_object()
+        
+        # Import here to avoid circular imports
+        from reviews.models import Review
+        from reviews.views import get_book_average_rating
+        
+        # Get all reviews for the book
+        reviews = Review.objects.filter(book=book)
+        context["reviews"] = reviews
+        
+        # Calculate average rating
+        context["average_rating"] = get_book_average_rating(book.id)
+        
+        # Check if current user has a review
+        if self.request.user.is_authenticated:
+            context["user_review"] = reviews.filter(user=self.request.user).first()
+        
+        return context
+
 
 class BookCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
     model = Book
