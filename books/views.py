@@ -1,5 +1,6 @@
 from django.contrib import messages
 from django.db.models import Q
+from django.shortcuts import get_object_or_404
 from django.urls import reverse_lazy
 from django.views.generic import CreateView, DeleteView, DetailView, ListView, UpdateView
 
@@ -76,6 +77,9 @@ class BookDetailView(DetailView):
     model = Book
     template_name = "books/book_detail.html"
     context_object_name = "book"
+
+    def get_object(self, queryset=None):
+        return get_object_or_404(Book, pk=self.kwargs.get("pk"))
 
 
 class BookCreateView(CreateView):

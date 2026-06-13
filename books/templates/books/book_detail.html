@@ -62,7 +62,16 @@
                             <div class="col-md-6">
                                 <div class="border rounded p-3 bg-white h-100">
                                     <div class="small text-muted text-uppercase">Available copies</div>
-                                    <div class="fw-semibold">{{ book.available_copies }} of {{ book.total_copies }}</div>
+                                    <div class="fw-semibold mb-2">{{ book.available_copies }} of {{ book.total_copies }}</div>
+                                    <div>
+                                        {% if book.available_copies == 0 %}
+                                            <span class="badge bg-danger">Out of Stock</span>
+                                        {% elif book.available_copies < 5 %}
+                                            <span class="badge bg-warning text-dark">Limited Copies</span>
+                                        {% else %}
+                                            <span class="badge bg-success">Available</span>
+                                        {% endif %}
+                                    </div>
                                 </div>
                             </div>
                         </div>
