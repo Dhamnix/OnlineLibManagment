@@ -2,7 +2,6 @@ from django import forms
 from django.contrib.auth import get_user_model
 from django.contrib.auth.forms import AuthenticationForm, UserCreationForm
 
-
 User = get_user_model()
 
 
@@ -12,13 +11,24 @@ class BootstrapFormMixin:
     def _apply_bootstrap_classes(self):
         for field in self.fields.values():
             css_class = field.widget.attrs.get("class", "")
-            field.widget.attrs["class"] = f"{css_class} form-control".strip()
+            if isinstance(field.widget, forms.Select):
+                field.widget.attrs["class"] = f"{css_class} form-select".strip()
+            else:
+                field.widget.attrs["class"] = f"{css_class} form-control".strip()
 
 
 class CustomUserRegistrationForm(BootstrapFormMixin, UserCreationForm):
     email = forms.EmailField(required=True)
     first_name = forms.CharField(required=True, max_length=150)
     last_name = forms.CharField(required=True, max_length=150)
+    role = forms.ChoiceField(
+        choices=[
+            ("MEMBER", "Member"),
+            ("ADMIN", "Librarian"),
+        ],
+        required=True,
+        label="Role",
+    )
 
     class Meta:
         model = User
@@ -27,6 +37,7 @@ class CustomUserRegistrationForm(BootstrapFormMixin, UserCreationForm):
             "email",
             "first_name",
             "last_name",
+            "role",
             "password1",
             "password2",
         )
