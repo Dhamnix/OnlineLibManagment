@@ -1,4 +1,5 @@
 from django.contrib import messages
+from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from django.urls import reverse_lazy
@@ -82,11 +83,12 @@ class BookDetailView(DetailView):
         return get_object_or_404(Book, pk=self.kwargs.get("pk"))
 
 
-class BookCreateView(CreateView):
+class BookCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
     model = Book
     form_class = BookForm
     template_name = "books/book_form.html"
     success_url = reverse_lazy("books:book_list")
+    permission_required = "books.add_book"
 
     def form_valid(self, form):
         messages.success(self.request, "Book created successfully.")
@@ -97,10 +99,11 @@ class BookCreateView(CreateView):
         return super().form_invalid(form)
 
 
-class BookUpdateView(UpdateView):
+class BookUpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateView):
     model = Book
     form_class = BookForm
     template_name = "books/book_form.html"
+    permission_required = "books.change_book"
 
     def get_success_url(self):
         return reverse_lazy("books:book_detail", kwargs={"pk": self.object.pk})
@@ -114,11 +117,12 @@ class BookUpdateView(UpdateView):
         return super().form_invalid(form)
 
 
-class BookDeleteView(DeleteView):
+class BookDeleteView(LoginRequiredMixin, PermissionRequiredMixin, DeleteView):
     model = Book
     template_name = "books/book_confirm_delete.html"
     context_object_name = "book"
     success_url = reverse_lazy("books:book_list")
+    permission_required = "books.delete_book"
 
     def form_valid(self, form):
         messages.success(self.request, "Book deleted successfully.")

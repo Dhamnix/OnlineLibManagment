@@ -43,3 +43,26 @@ class BookForm(forms.ModelForm):
             return total_copies
 
         return available_copies
+
+    def clean(self):
+        cleaned_data = super().clean()
+        total_copies = cleaned_data.get("total_copies")
+        available_copies = cleaned_data.get("available_copies")
+
+        if total_copies is not None and available_copies is not None:
+            if available_copies > total_copies:
+                self.add_error(
+                    "available_copies",
+                    "Available copies cannot exceed total copies."
+                )
+        return cleaned_data
+
+    def full_clean(self):
+        super().full_clean()
+        if self.errors:
+            for field_name in self.errors:
+                if field_name in self.fields:
+                    widget = self.fields[field_name].widget
+                    existing_class = widget.attrs.get("class", "")
+                    if "is-invalid" not in existing_class:
+                        widget.attrs["class"] = f"{existing_class} is-invalid".strip()
