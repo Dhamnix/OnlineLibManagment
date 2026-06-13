@@ -13,6 +13,37 @@ from recommendations.services import recommend_for_user, similar_books
 User = get_user_model()
 
 
+class HomeView(TemplateView):
+    """Public landing page for the application."""
+
+    template_name = "home.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        # Most popular books (by borrow count)
+        popular_books = (
+            Book.objects.annotate(borrow_count=Count("borrowings"))
+            .order_by("-borrow_count", "title")[:5]
+        )
+
+        # Latest books (fallback if popularity is low)
+        latest_books = Book.objects.order_by("-pk")[:5]
+
+        context["popular_books"] = popular_books
+        context["latest_books"] = latest_books
+
+        # Role-based quick links
+        user = self.request.user
+        context["user"] = user
+        if user.is_authenticated:
+            context["is_admin"] = user.is_superuser or getattr(user, "role", None) == "ADMIN"
+        else:
+            context["is_admin"] = False
+
+        return context
+
+
 class DashboardView(LoginRequiredMixin, TemplateView):
     """User-facing dashboard including recommendation sections."""
 
