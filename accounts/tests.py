@@ -33,6 +33,16 @@ class AuthenticationTests(TestCase):
         user = CustomUser.objects.get(username="new_user")
         self.assertEqual(user.role, CustomUser.Role.MEMBER)
         
+        # Verify user is in Member group
+        self.assertTrue(user.groups.filter(name="Member").exists())
+        self.assertFalse(user.groups.filter(name="Librarian").exists())
+        
+        # Verify permissions
+        self.assertTrue(user.has_perm("books.view_book"))
+        self.assertTrue(user.has_perm("borrowing.borrow_books"))
+        self.assertTrue(user.has_perm("reviews.review_books"))
+        self.assertFalse(user.has_perm("books.add_book"))
+        
         # Verify user is logged in
         self.assertEqual(int(self.client.session["_auth_user_id"]), user.pk)
         
@@ -55,6 +65,16 @@ class AuthenticationTests(TestCase):
         # Verify user role is ADMIN
         user = CustomUser.objects.get(username="new_librarian")
         self.assertEqual(user.role, CustomUser.Role.ADMIN)
+        
+        # Verify user is in Librarian group
+        self.assertTrue(user.groups.filter(name="Librarian").exists())
+        self.assertFalse(user.groups.filter(name="Member").exists())
+        
+        # Verify permissions
+        self.assertTrue(user.has_perm("books.add_book"))
+        self.assertTrue(user.has_perm("books.change_book"))
+        self.assertTrue(user.has_perm("books.delete_book"))
+        self.assertTrue(user.has_perm("borrowing.manage_borrowings"))
         
         self.assertEqual(int(self.client.session["_auth_user_id"]), user.pk)
 
