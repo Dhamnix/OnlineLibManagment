@@ -9,47 +9,40 @@
 {% block admin_content %}
 <div class="container-fluid px-0">
     
-    <!-- Header with Actions -->
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
         <h5 class="fw-bold mb-0">
             <i class="fas fa-users me-2" style="color: var(--primary);"></i> All Users
+            <span class="badge bg-secondary ms-2">{{ users|length }}</span>
         </h5>
         <div class="d-flex gap-2">
-            <button type="button" class="btn btn-primary btn-sm" id="addUserBtn">
+            <a href="{% url 'dashboard:admin_user_add' %}" class="btn btn-primary btn-sm">
                 <i class="fas fa-user-plus me-1"></i> Add User
-            </button>
-            <button type="button" class="btn btn-outline-secondary btn-sm" id="exportBtn">
+            </a>
+            <a href="{% url 'dashboard:admin_user_export' %}" class="btn btn-outline-secondary btn-sm">
                 <i class="fas fa-download me-1"></i> Export CSV
-            </button>
+            </a>
         </div>
     </div>
 
-    <!-- Search & Filters -->
     <div class="card mb-4">
         <div class="card-body">
-            <form method="get" class="row g-2 align-items-end" id="filterForm">
+            <form method="get" class="row g-2 align-items-end">
                 <div class="col-md-4">
-                    <label class="form-label small fw-semibold">
-                        <i class="fas fa-search me-1"></i> Search
-                    </label>
+                    <label class="form-label small fw-semibold">Search</label>
                     <input type="text" name="search" value="{{ search }}" class="form-control form-control-sm" 
-                           placeholder="Username, email or name..." id="searchInput">
+                           placeholder="Username, email or name...">
                 </div>
                 <div class="col-md-3">
-                    <label class="form-label small fw-semibold">
-                        <i class="fas fa-tag me-1"></i> Role
-                    </label>
-                    <select name="role" class="form-select form-select-sm" id="roleSelect">
+                    <label class="form-label small fw-semibold">Role</label>
+                    <select name="role" class="form-select form-select-sm">
                         <option value="">All Roles</option>
                         <option value="ADMIN" {% if role_filter == 'ADMIN' %}selected{% endif %}>Admin</option>
                         <option value="MEMBER" {% if role_filter == 'MEMBER' %}selected{% endif %}>Member</option>
                     </select>
                 </div>
                 <div class="col-md-3">
-                    <label class="form-label small fw-semibold">
-                        <i class="fas fa-circle me-1"></i> Status
-                    </label>
-                    <select name="status" class="form-select form-select-sm" id="statusSelect">
+                    <label class="form-label small fw-semibold">Status</label>
+                    <select name="status" class="form-select form-select-sm">
                         <option value="">All</option>
                         <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active</option>
                         <option value="inactive" {% if status_filter == 'inactive' %}selected{% endif %}>Inactive</option>
@@ -61,26 +54,15 @@
                     </button>
                 </div>
             </form>
-            {% if search or role_filter or status_filter %}
-            <div class="mt-2">
-                <a href="{% url 'dashboard:admin_users' %}" class="small text-decoration-none">
-                    <i class="fas fa-times-circle me-1"></i> Clear all filters
-                </a>
-            </div>
-            {% endif %}
         </div>
     </div>
 
-    <!-- Users Table -->
     <div class="card">
         <div class="card-body p-0">
             <div class="table-responsive">
                 <table class="table table-hover mb-0">
                     <thead class="table-light">
                         <tr>
-                            <th style="width: 40px;">
-                                <input type="checkbox" class="form-check-input" id="selectAll">
-                            </th>
                             <th>User</th>
                             <th>Email</th>
                             <th>Role</th>
@@ -88,15 +70,12 @@
                             <th>Joined</th>
                             <th>Active Loans</th>
                             <th>Unpaid Fines</th>
-                            <th class="text-end">Actions</th>
+                            <th class="text-center">Actions</th>
                         </tr>
                     </thead>
-                    <tbody id="usersTableBody">
+                    <tbody>
                         {% for user in users %}
                         <tr>
-                            <td>
-                                <input type="checkbox" class="form-check-input user-checkbox" value="{{ user.id }}">
-                            </td>
                             <td>
                                 <div class="d-flex align-items-center gap-2">
                                     <div class="user-avatar-sm">
@@ -117,19 +96,13 @@
                             </td>
                             <td>
                                 {% if user.is_active %}
-                                    <span class="badge bg-success">
-                                        <i class="fas fa-check-circle me-1"></i> Active
-                                    </span>
+                                    <span class="badge bg-success">Active</span>
                                 {% else %}
-                                    <span class="badge bg-danger">
-                                        <i class="fas fa-times-circle me-1"></i> Inactive
-                                    </span>
+                                    <span class="badge bg-danger">Inactive</span>
                                 {% endif %}
                             </td>
                             <td>{{ user.date_joined|date:"M d, Y" }}</td>
-                            <td>
-                                <span class="badge bg-info">{{ user.borrowings_count|default:0 }}</span>
-                            </td>
+                            <td><span class="badge bg-info">{{ user.borrowings_count|default:0 }}</span></td>
                             <td>
                                 {% if user.fines_total|default:0 > 0 %}
                                     <span class="badge bg-danger">${{ user.fines_total|floatformat:2 }}</span>
@@ -137,23 +110,29 @@
                                     <span class="badge bg-success">$0</span>
                                 {% endif %}
                             </td>
-                            <td class="text-end">
+                            <td class="text-center">
                                 <div class="btn-group btn-group-sm">
-                                    <button type="button" class="btn btn-outline-primary view-user" data-id="{{ user.id }}" data-name="{{ user.username }}">
+                                    <!-- View Button - لینک به صفحه پروفایل -->
+                                    <a href="{% url 'dashboard:admin_user_profile' user.id %}" class="btn btn-outline-primary" title="View Profile">
                                         <i class="fas fa-eye"></i>
-                                    </button>
-                                    <button type="button" class="btn btn-outline-secondary edit-user" data-id="{{ user.id }}" data-name="{{ user.username }}">
+                                    </a>
+                                    <a href="{% url 'dashboard:admin_user_edit' user.id %}" class="btn btn-outline-secondary" title="Edit User">
                                         <i class="fas fa-edit"></i>
-                                    </button>
-                                    <button type="button" class="btn btn-outline-danger delete-user" data-id="{{ user.id }}" data-name="{{ user.username }}">
-                                        <i class="fas fa-trash"></i>
-                                    </button>
+                                    </a>
+                                    <form method="post" action="{% url 'dashboard:admin_user_delete' user.id %}" 
+                                          style="display:inline;" 
+                                          onsubmit="return confirm('Delete user {{ user.username }}?');">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-outline-danger" title="Delete User">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </form>
                                 </div>
                             </td>
                         </tr>
                         {% empty %}
                         <tr>
-                            <td colspan="9" class="text-center py-5 text-muted">
+                            <td colspan="8" class="text-center py-5 text-muted">
                                 <i class="fas fa-users fa-3x mb-3 d-block"></i>
                                 No users found
                             </td>
@@ -165,7 +144,6 @@
         </div>
     </div>
 
-    <!-- Pagination -->
     {% if is_paginated %}
     <nav class="mt-4">
         <ul class="pagination justify-content-center pagination-sm">
@@ -193,379 +171,33 @@
     {% endif %}
 </div>
 
-<!-- Add User Modal -->
-<div class="modal fade" id="addUserModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content" style="border-radius: 24px;">
-            <div class="modal-header border-0 pt-4 px-4">
-                <h5 class="modal-title fw-bold">
-                    <i class="fas fa-user-plus me-2" style="color: var(--primary);"></i>
-                    Add New User
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body px-4">
-                <form id="addUserForm">
-                    {% csrf_token %}
-                    <div class="mb-3">
-                        <label class="form-label small fw-semibold">Username *</label>
-                        <input type="text" name="username" class="form-control" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label small fw-semibold">Email *</label>
-                        <input type="email" name="email" class="form-control" required>
-                    </div>
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label small fw-semibold">First Name</label>
-                            <input type="text" name="first_name" class="form-control">
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label small fw-semibold">Last Name</label>
-                            <input type="text" name="last_name" class="form-control">
-                        </div>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label small fw-semibold">Role</label>
-                        <select name="role" class="form-select">
-                            <option value="MEMBER">Member</option>
-                            <option value="ADMIN">Admin</option>
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label small fw-semibold">Password *</label>
-                        <input type="password" name="password" class="form-control" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label small fw-semibold">Confirm Password *</label>
-                        <input type="password" name="password2" class="form-control" required>
-                    </div>
-                    <div id="addUserError" class="alert alert-danger d-none"></div>
-                    <div class="d-flex gap-2 mt-4">
-                        <button type="submit" class="btn btn-primary flex-grow-1">
-                            <i class="fas fa-save me-1"></i> Create User
-                        </button>
-                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
-                            Cancel
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Edit User Modal -->
-<div class="modal fade" id="editUserModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content" style="border-radius: 24px;">
-            <div class="modal-header border-0 pt-4 px-4">
-                <h5 class="modal-title fw-bold">
-                    <i class="fas fa-edit me-2" style="color: var(--primary);"></i>
-                    Edit User
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body px-4">
-                <form id="editUserForm">
-                    {% csrf_token %}
-                    <input type="hidden" name="user_id" id="editUserId">
-                    <div class="mb-3">
-                        <label class="form-label small fw-semibold">Username *</label>
-                        <input type="text" name="username" id="editUsername" class="form-control" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label small fw-semibold">Email *</label>
-                        <input type="email" name="email" id="editEmail" class="form-control" required>
-                    </div>
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label small fw-semibold">First Name</label>
-                            <input type="text" name="first_name" id="editFirstName" class="form-control">
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label small fw-semibold">Last Name</label>
-                            <input type="text" name="last_name" id="editLastName" class="form-control">
-                        </div>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label small fw-semibold">Role</label>
-                        <select name="role" id="editRole" class="form-select">
-                            <option value="MEMBER">Member</option>
-                            <option value="ADMIN">Admin</option>
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label small fw-semibold">Status</label>
-                        <select name="is_active" id="editStatus" class="form-select">
-                            <option value="true">Active</option>
-                            <option value="false">Inactive</option>
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label small fw-semibold">New Password (leave blank to keep current)</label>
-                        <input type="password" name="password" class="form-control" placeholder="Enter new password...">
-                    </div>
-                    <div id="editUserError" class="alert alert-danger d-none"></div>
-                    <div class="d-flex gap-2 mt-4">
-                        <button type="submit" class="btn btn-primary flex-grow-1">
-                            <i class="fas fa-save me-1"></i> Save Changes
-                        </button>
-                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
-                            Cancel
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- View User Modal -->
-<div class="modal fade" id="viewUserModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content" style="border-radius: 24px;">
-            <div class="modal-header border-0 pt-4 px-4">
-                <h5 class="modal-title fw-bold">
-                    <i class="fas fa-user-circle me-2" style="color: var(--primary);"></i>
-                    User Details
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body px-4" id="viewUserContent">
-                <div class="text-center py-4">
-                    <div class="spinner-border text-primary" role="status"></div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
 <style>
     .user-avatar-sm {
         width: 36px;
         height: 36px;
         background: linear-gradient(135deg, #6366f1, #10b981);
-        border-radius: 40px;
+        border-radius: 50px;
         display: flex;
         align-items: center;
         justify-content: center;
         color: white;
         font-weight: 600;
         font-size: 0.9rem;
+        flex-shrink: 0;
     }
-    
     .table td, .table th {
         padding: 0.8rem;
         font-size: 0.85rem;
         vertical-align: middle;
     }
-    
     .card {
         border: none;
         border-radius: 16px;
         box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
     }
-    
-    .modal-content {
-        border-radius: 24px;
-        border: none;
-    }
-    
     .badge {
         padding: 4px 10px;
         font-weight: 500;
     }
 </style>
-
-<script>
-    // CSRF Token helper
-    function getCookie(name) {
-        let cookieValue = null;
-        if (document.cookie && document.cookie !== '') {
-            const cookies = document.cookie.split(';');
-            for (let i = 0; i < cookies.length; i++) {
-                const cookie = cookies[i].trim();
-                if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                    break;
-                }
-            }
-        }
-        return cookieValue;
-    }
-    
-    const csrftoken = getCookie('csrftoken');
-    
-    // ==================== ADD USER ====================
-    document.getElementById('addUserBtn').addEventListener('click', function() {
-        document.getElementById('addUserForm').reset();
-        document.getElementById('addUserError').classList.add('d-none');
-        new bootstrap.Modal(document.getElementById('addUserModal')).show();
-    });
-    
-    document.getElementById('addUserForm').addEventListener('submit', async function(e) {
-        e.preventDefault();
-        
-        const password = this.querySelector('[name="password"]').value;
-        const password2 = this.querySelector('[name="password2"]').value;
-        const errorDiv = document.getElementById('addUserError');
-        
-        if (password !== password2) {
-            errorDiv.classList.remove('d-none');
-            errorDiv.innerHTML = 'Passwords do not match!';
-            return;
-        }
-        
-        if (password.length < 6) {
-            errorDiv.classList.remove('d-none');
-            errorDiv.innerHTML = 'Password must be at least 6 characters!';
-            return;
-        }
-        
-        errorDiv.classList.add('d-none');
-        
-        const formData = new FormData(this);
-        
-        try {
-            const response = await fetch('/dashboard/admin/users/add/', {
-                method: 'POST',
-                headers: {
-                    'X-CSRFToken': csrftoken,
-                },
-                body: formData
-            });
-            
-            const data = await response.json();
-            
-            if (data.success) {
-                bootstrap.Modal.getInstance(document.getElementById('addUserModal')).hide();
-                location.reload();
-            } else {
-                errorDiv.classList.remove('d-none');
-                errorDiv.innerHTML = data.error || 'Error creating user';
-            }
-        } catch (error) {
-            errorDiv.classList.remove('d-none');
-            errorDiv.innerHTML = 'Network error. Please try again.';
-        }
-    });
-    
-    // ==================== EDIT USER ====================
-    document.querySelectorAll('.edit-user').forEach(btn => {
-        btn.addEventListener('click', async function() {
-            const userId = this.dataset.id;
-            const errorDiv = document.getElementById('editUserError');
-            errorDiv.classList.add('d-none');
-            
-            try {
-                const response = await fetch(`/dashboard/admin/users/${userId}/data/`);
-                const userData = await response.json();
-                
-                document.getElementById('editUserId').value = userData.id;
-                document.getElementById('editUsername').value = userData.username;
-                document.getElementById('editEmail').value = userData.email;
-                document.getElementById('editFirstName').value = userData.first_name || '';
-                document.getElementById('editLastName').value = userData.last_name || '';
-                document.getElementById('editRole').value = userData.role;
-                document.getElementById('editStatus').value = userData.is_active ? 'true' : 'false';
-                
-                new bootstrap.Modal(document.getElementById('editUserModal')).show();
-            } catch (error) {
-                console.error('Error:', error);
-                alert('Error loading user data');
-            }
-        });
-    });
-    
-    document.getElementById('editUserForm').addEventListener('submit', async function(e) {
-        e.preventDefault();
-        
-        const userId = document.getElementById('editUserId').value;
-        const formData = new FormData(this);
-        const errorDiv = document.getElementById('editUserError');
-        errorDiv.classList.add('d-none');
-        
-        try {
-            const response = await fetch(`/dashboard/admin/users/${userId}/update/`, {
-                method: 'POST',
-                headers: {
-                    'X-CSRFToken': csrftoken,
-                },
-                body: formData
-            });
-            
-            const data = await response.json();
-            
-            if (data.success) {
-                bootstrap.Modal.getInstance(document.getElementById('editUserModal')).hide();
-                location.reload();
-            } else {
-                errorDiv.classList.remove('d-none');
-                errorDiv.innerHTML = data.error || 'Error updating user';
-            }
-        } catch (error) {
-            errorDiv.classList.remove('d-none');
-            errorDiv.innerHTML = 'Network error. Please try again.';
-        }
-    });
-    
-    // ==================== VIEW USER ====================
-    document.querySelectorAll('.view-user').forEach(btn => {
-        btn.addEventListener('click', async function() {
-            const userId = this.dataset.id;
-            const userName = this.dataset.name;
-            const modalBody = document.getElementById('viewUserContent');
-            modalBody.innerHTML = '<div class="text-center py-4"><div class="spinner-border text-primary" role="status"></div></div>';
-            
-            try {
-                const response = await fetch(`/dashboard/admin/users/${userId}/view/`);
-                const html = await response.text();
-                modalBody.innerHTML = html;
-                new bootstrap.Modal(document.getElementById('viewUserModal')).show();
-            } catch (error) {
-                modalBody.innerHTML = '<div class="alert alert-danger">Error loading user details</div>';
-            }
-        });
-    });
-    
-    // ==================== DELETE USER ====================
-    document.querySelectorAll('.delete-user').forEach(btn => {
-        btn.addEventListener('click', function() {
-            const userId = this.dataset.id;
-            const userName = this.dataset.name;
-            
-            if (confirm(`Are you sure you want to delete user "${userName}"? This action cannot be undone.`)) {
-                fetch(`/dashboard/admin/users/${userId}/delete/`, {
-                    method: 'POST',
-                    headers: {
-                        'X-CSRFToken': csrftoken,
-                        'Content-Type': 'application/json'
-                    }
-                }).then(response => response.json()).then(data => {
-                    if (data.success) {
-                        location.reload();
-                    } else {
-                        alert(data.error || 'Error deleting user');
-                    }
-                }).catch(error => {
-                    console.error('Error:', error);
-                    alert('Error deleting user');
-                });
-            }
-        });
-    });
-    
-    // Select All Checkboxes
-    document.getElementById('selectAll')?.addEventListener('change', function() {
-        document.querySelectorAll('.user-checkbox').forEach(cb => {
-            cb.checked = this.checked;
-        });
-    });
-    
-    // Export Users
-    document.getElementById('exportBtn')?.addEventListener('click', function() {
-        window.location.href = '{% url "dashboard:admin_user_export" %}';
-    });
-</script>
 {% endblock %}

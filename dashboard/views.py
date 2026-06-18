@@ -1,11 +1,11 @@
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
-from django.views.generic import TemplateView, ListView
+from django.views.generic import TemplateView, ListView, DetailView
 from django.views import View
 from django.db.models import Sum, Count, Q
 from django.utils import timezone
-from django.shortcuts import redirect, get_object_or_404
+from django.shortcuts import redirect, get_object_or_404, render
 from django.contrib import messages
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from django.contrib.auth import get_user_model
 import csv
 
@@ -16,79 +16,52 @@ from recommendations.services import recommend_for_user, similar_books
 User = get_user_model()
 
 
-# ========================================
-# PUBLIC HOME VIEW
-# ========================================
-
 class HomeView(TemplateView):
-    """Public landing page for the application."""
-    
     template_name = "home.html"
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-
-        # Most popular books (by borrow count)
         popular_books = (
             Book.objects.annotate(borrow_count=Count("borrowings"))
             .order_by("-borrow_count", "title")[:5]
         )
-
-        # Latest books (fallback if popularity is low)
-        latest_books = Book.objects.order_by("-pk")[:5]
-
         context["popular_books"] = popular_books
-        context["latest_books"] = latest_books
-
-        # Role-based quick links
         user = self.request.user
         context["user"] = user
         if user.is_authenticated:
             context["is_admin"] = user.is_superuser or getattr(user, "role", None) == "ADMIN"
         else:
             context["is_admin"] = False
-
         return context
 
 
-# ========================================
-# USER DASHBOARD (FOR REGULAR USERS)
-# ========================================
-
 class DashboardView(LoginRequiredMixin, TemplateView):
-    """User-facing dashboard including recommendation sections."""
-    
     template_name = "dashboard/dashboard.html"
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         user = self.request.user
 
-        # Active borrowings (not returned)
         active_borrowings = (
             Borrow.objects.filter(user=user, status=Borrow.StatusChoices.BORROWED)
             .select_related("book")
             .order_by("due_date")
         )
 
-        # Reservations (exclude cancelled)
         reservations = (
             Reservation.objects.filter(user=user)
             .exclude(status=Reservation.StatusChoices.CANCELLED)
             .select_related("book")
         )
 
-        # Outstanding fines
         outstanding_fines_qs = (
             Fine.objects.filter(user=user, is_paid=False)
             .select_related("borrow", "borrow__book")
         )
         fines_total = outstanding_fines_qs.aggregate(total=Sum("amount"))["total"] or 0
 
-        # Recommended For You (from recommendation service)
         recommended_for_you = recommend_for_user(user, limit=6)
 
-        # Similar Books: base on user's most recently borrowed book
         last_borrow = (
             Borrow.objects.filter(user=user)
             .select_related("book")
@@ -112,48 +85,33 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         return context
 
 
-# ========================================
-# ADMIN DASHBOARD
-# ========================================
-
 class AdminDashboardView(LoginRequiredMixin, UserPassesTestMixin, TemplateView):
-    """Admin dashboard showing aggregates and popular items."""
-    
     template_name = "dashboard/admin_dashboard.html"
 
     def test_func(self):
-        # Only staff users, superusers, or ADMINS can access
         user = self.request.user
         return user.is_staff or user.is_superuser or getattr(user, "role", None) == "ADMIN"
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
-        # Total books
         total_books = Book.objects.count()
-
-        # Total users
         total_users = User.objects.count()
 
-        # Active borrowings (status BORROWED)
         active_borrowings_qs = Borrow.objects.filter(
             status=Borrow.StatusChoices.BORROWED
         ).select_related("user", "book")
         active_borrowings = active_borrowings_qs.count()
 
-        # Overdue borrowings: borrowed and due_date in the past
         now = timezone.now()
         overdue_qs = active_borrowings_qs.filter(due_date__lt=now).order_by("due_date")
         overdue_count = overdue_qs.count()
 
-        # Most popular books by borrow count
         popular_books = (
             Book.objects.annotate(borrow_count=Count("borrowings"))
             .order_by("-borrow_count", "title")[:10]
-            .select_related()
         )
 
-        # Recent users (last 5)
         recent_users = User.objects.order_by("-date_joined")[:5]
 
         context.update(
@@ -170,13 +128,7 @@ class AdminDashboardView(LoginRequiredMixin, UserPassesTestMixin, TemplateView):
         return context
 
 
-# ========================================
-# ADMIN USER MANAGEMENT
-# ========================================
-
 class AdminUsersView(LoginRequiredMixin, UserPassesTestMixin, ListView):
-    """Admin view for managing all users"""
-    
     template_name = "dashboard/admin_users.html"
     model = User
     context_object_name = "users"
@@ -190,10 +142,8 @@ class AdminUsersView(LoginRequiredMixin, UserPassesTestMixin, ListView):
         queryset = User.objects.annotate(
             borrowings_count=Count('borrowings', filter=Q(borrowings__status='BORROWED')),
             fines_total=Sum('fines__amount', filter=Q(fines__is_paid=False)),
-            fines_unpaid_count=Count('fines', filter=Q(fines__is_paid=False))
         )
         
-        # Search filter
         search = self.request.GET.get('search', '').strip()
         if search:
             queryset = queryset.filter(
@@ -203,12 +153,10 @@ class AdminUsersView(LoginRequiredMixin, UserPassesTestMixin, ListView):
                 Q(last_name__icontains=search)
             )
         
-        # Role filter
         role = self.request.GET.get('role', '')
         if role:
             queryset = queryset.filter(role=role)
         
-        # Status filter
         status = self.request.GET.get('status', '')
         if status == 'active':
             queryset = queryset.filter(is_active=True)
@@ -226,33 +174,44 @@ class AdminUsersView(LoginRequiredMixin, UserPassesTestMixin, ListView):
 
 
 class AdminUserAddView(LoginRequiredMixin, UserPassesTestMixin, View):
-    """Add a new user from admin panel"""
-    
+    def test_func(self):
+        user = self.request.user
+        return user.is_staff or user.is_superuser or getattr(user, "role", None) == "ADMIN"
+
+    def get(self, request):
+        return render(request, 'dashboard/admin_user_form.html', {'is_add': True})
+
+
+class AdminUserCreateView(LoginRequiredMixin, UserPassesTestMixin, View):
     def test_func(self):
         user = self.request.user
         return user.is_staff or user.is_superuser or getattr(user, "role", None) == "ADMIN"
 
     def post(self, request):
-        import json
-        from django.http import JsonResponse
-        
         username = request.POST.get('username')
         email = request.POST.get('email')
         password = request.POST.get('password')
+        password2 = request.POST.get('password2')
         first_name = request.POST.get('first_name', '')
         last_name = request.POST.get('last_name', '')
         role = request.POST.get('role', 'MEMBER')
 
-        # Check if username exists
-        if User.objects.filter(username=username).exists():
-            return JsonResponse({'success': False, 'error': f'Username "{username}" already exists.'})
-        
-        # Check if email exists
-        if User.objects.filter(email=email).exists():
-            return JsonResponse({'success': False, 'error': f'Email "{email}" already exists.'})
+        # بررسی تطابق رمز عبور
+        if password != password2:
+            messages.error(request, 'Passwords do not match!')
+            return redirect('dashboard:admin_user_add')
 
-        # Create user
-        user = User.objects.create_user(
+        # بررسی وجود کاربر
+        if User.objects.filter(username=username).exists():
+            messages.error(request, f'Username "{username}" already exists.')
+            return redirect('dashboard:admin_user_add')
+        
+        if User.objects.filter(email=email).exists():
+            messages.error(request, f'Email "{email}" already exists.')
+            return redirect('dashboard:admin_user_add')
+
+        # ایجاد کاربر جدید
+        User.objects.create_user(
             username=username,
             email=email,
             password=password,
@@ -261,52 +220,97 @@ class AdminUserAddView(LoginRequiredMixin, UserPassesTestMixin, View):
             role=role
         )
         
-        return JsonResponse({'success': True, 'message': f'User "{username}" created successfully.'})
+        messages.success(request, f'User "{username}" created successfully.')
+        return redirect('dashboard:admin_users')
 
-class AdminUserDeleteView(LoginRequiredMixin, UserPassesTestMixin, View):
-    """Delete a user from admin panel"""
-    
+
+class AdminUserEditView(LoginRequiredMixin, UserPassesTestMixin, View):
+    def test_func(self):
+        user = self.request.user
+        return user.is_staff or user.is_superuser or getattr(user, "role", None) == "ADMIN"
+
+    def get(self, request, pk):
+        user = get_object_or_404(User, pk=pk)
+        return render(request, 'dashboard/admin_user_form.html', {'user': user, 'is_add': False})
+
+
+class AdminUserUpdateView(LoginRequiredMixin, UserPassesTestMixin, View):
     def test_func(self):
         user = self.request.user
         return user.is_staff or user.is_superuser or getattr(user, "role", None) == "ADMIN"
 
     def post(self, request, pk):
-        from django.http import JsonResponse
+        user = get_object_or_404(User, pk=pk)
         
+        username = request.POST.get('username')
+        email = request.POST.get('email')
+        first_name = request.POST.get('first_name', '')
+        last_name = request.POST.get('last_name', '')
+        role = request.POST.get('role')
+        password = request.POST.get('password', '')
+        is_active = request.POST.get('is_active') == 'true' if request.POST.get('is_active') else user.is_active
+        
+        # بررسی تکراری بودن username
+        if User.objects.exclude(pk=pk).filter(username=username).exists():
+            messages.error(request, f'Username "{username}" already taken.')
+            return redirect('dashboard:admin_user_edit', pk=pk)
+        
+        # بررسی تکراری بودن email
+        if User.objects.exclude(pk=pk).filter(email=email).exists():
+            messages.error(request, f'Email "{email}" already taken.')
+            return redirect('dashboard:admin_user_edit', pk=pk)
+        
+        # به‌روزرسانی اطلاعات
+        user.username = username
+        user.email = email
+        user.first_name = first_name
+        user.last_name = last_name
+        user.role = role
+        user.is_active = is_active
+        
+        if password:
+            user.set_password(password)
+        
+        user.save()
+        
+        messages.success(request, f'User "{username}" updated successfully.')
+        return redirect('dashboard:admin_users')
+
+
+class AdminUserDeleteView(LoginRequiredMixin, UserPassesTestMixin, View):
+    def test_func(self):
+        user = self.request.user
+        return user.is_staff or user.is_superuser or getattr(user, "role", None) == "ADMIN"
+
+    def post(self, request, pk):
         user_to_delete = get_object_or_404(User, pk=pk)
         
-        # Prevent deleting yourself
         if user_to_delete == request.user:
-            return JsonResponse({'success': False, 'error': 'You cannot delete your own account.'})
+            messages.error(request, 'You cannot delete your own account.')
+            return redirect('dashboard:admin_users')
         
         username = user_to_delete.username
         user_to_delete.delete()
         
-        return JsonResponse({'success': True, 'message': f'User "{username}" deleted successfully.'})
-    
+        messages.success(request, f'User "{username}" deleted successfully.')
+        return redirect('dashboard:admin_users')
+
 
 class AdminUserExportView(LoginRequiredMixin, UserPassesTestMixin, View):
-    """Export all users to CSV file"""
-    
     def test_func(self):
         user = self.request.user
         return user.is_staff or user.is_superuser or getattr(user, "role", None) == "ADMIN"
 
     def get(self, request):
-        # Create CSV response
         response = HttpResponse(content_type='text/csv')
         response['Content-Disposition'] = 'attachment; filename="users_export.csv"'
         
-        # Create CSV writer
         writer = csv.writer(response)
-        
-        # Write header
         writer.writerow([
             'ID', 'Username', 'Email', 'First Name', 'Last Name', 
             'Role', 'Active', 'Staff', 'Superuser', 'Date Joined', 'Last Login'
         ])
         
-        # Write data
         users = User.objects.all().order_by('-date_joined')
         for user in users:
             writer.writerow([
@@ -326,9 +330,58 @@ class AdminUserExportView(LoginRequiredMixin, UserPassesTestMixin, View):
         return response
 
 
+class AdminUserProfileView(LoginRequiredMixin, UserPassesTestMixin, DetailView):
+    model = User
+    template_name = 'dashboard/admin_user_profile.html'
+    context_object_name = 'profile_user'
+    pk_url_kwarg = 'pk'
+
+    def test_func(self):
+        user = self.request.user
+        return user.is_staff or user.is_superuser or getattr(user, "role", None) == "ADMIN"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        user = self.get_object()
+        
+        context['active_borrowings'] = Borrow.objects.filter(
+            user=user, 
+            status=Borrow.StatusChoices.BORROWED
+        ).count()
+        
+        context['total_borrowings'] = Borrow.objects.filter(user=user).count()
+        
+        unpaid_fines = Fine.objects.filter(user=user, is_paid=False)
+        context['fines_total'] = unpaid_fines.aggregate(total=Sum('amount'))['total'] or 0
+        
+        context['active_reservations'] = Reservation.objects.filter(
+            user=user,
+            status__in=[Reservation.StatusChoices.PENDING, Reservation.StatusChoices.AVAILABLE]
+        ).count()
+        
+        context['recent_borrowings'] = Borrow.objects.filter(user=user).select_related('book').order_by('-borrow_date')[:10]
+        
+        context['fines'] = Fine.objects.filter(user=user).select_related('borrow', 'borrow__book').order_by('-borrow__borrow_date')
+        
+        colors = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4']
+        color_index = sum(ord(c) for c in user.username) % len(colors)
+        context['avatar_color'] = colors[color_index]
+        
+        initials = ''
+        if user.first_name:
+            initials += user.first_name[0].upper()
+        if user.last_name:
+            initials += user.last_name[0].upper()
+        if not initials:
+            initials = user.username[0].upper()
+        context['initials'] = initials
+        
+        context['now'] = timezone.now()
+        
+        return context
+
+
 class AdminUserViewDetail(LoginRequiredMixin, UserPassesTestMixin, View):
-    """View user details (AJAX for modal)"""
-    
     def test_func(self):
         user = self.request.user
         return user.is_staff or user.is_superuser or getattr(user, "role", None) == "ADMIN"
@@ -336,7 +389,6 @@ class AdminUserViewDetail(LoginRequiredMixin, UserPassesTestMixin, View):
     def get(self, request, pk):
         user = get_object_or_404(User, pk=pk)
         
-        # Get user statistics
         active_borrowings = Borrow.objects.filter(
             user=user, 
             status=Borrow.StatusChoices.BORROWED
@@ -352,229 +404,223 @@ class AdminUserViewDetail(LoginRequiredMixin, UserPassesTestMixin, View):
             status__in=[Reservation.StatusChoices.PENDING, Reservation.StatusChoices.AVAILABLE]
         ).count()
         
+        recent_borrowings = Borrow.objects.filter(user=user).select_related('book').order_by('-borrow_date')[:5]
+        
+        colors = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4']
+        color_index = sum(ord(c) for c in user.username) % len(colors)
+        avatar_color = colors[color_index]
+        
+        initials = ''
+        if user.first_name:
+            initials += user.first_name[0].upper()
+        if user.last_name:
+            initials += user.last_name[0].upper()
+        if not initials:
+            initials = user.username[0].upper()
+        
+        recent_html = ''
+        if recent_borrowings:
+            for borrow in recent_borrowings:
+                status_badge = 'bg-success' if borrow.status == 'RETURNED' else 'bg-warning'
+                status_text = 'Returned' if borrow.status == 'RETURNED' else 'Borrowed'
+                recent_html += f'''
+                    <div class="activity-item">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <div class="fw-semibold">{borrow.book.title}</div>
+                                <div class="small text-muted">{borrow.book.author}</div>
+                            </div>
+                            <span class="badge {status_badge}">{status_text}</span>
+                        </div>
+                        <div class="small text-muted mt-1">
+                            <i class="fas fa-calendar-alt me-1"></i>
+                            {borrow.borrow_date.strftime('%b %d, %Y')}
+                        </div>
+                    </div>
+                '''
+        else:
+            recent_html = '<div class="text-muted text-center py-3">No borrowing history</div>'
+        
+        status_class = 'success' if user.is_active else 'danger'
+        status_text = 'Active' if user.is_active else 'Inactive'
+        fines_class = 'danger' if fines_total > 0 else 'success'
+        role_icon = 'crown' if user.role == 'ADMIN' else 'user'
+        
         html = f"""
-        <div class="user-detail-modal">
-            <div class="d-flex align-items-center gap-3 mb-4">
-                <div class="user-avatar-large">
-                    {user.username|first|upper}
-                </div>
-                <div>
-                    <h6 class="mb-0">{user.get_full_name|default:user.username}</h6>
-                    <small class="text-muted">@{user.username}</small>
-                </div>
-            </div>
-            
-            <div class="row g-3 mb-4">
-                <div class="col-6">
-                    <div class="info-box">
-                        <div class="small text-muted">Email</div>
-                        <div class="fw-semibold">{user.email}</div>
+        <div class="user-profile-modal">
+            <div class="profile-header-card" style="background: linear-gradient(135deg, {avatar_color}, {avatar_color}dd);">
+                <div class="row align-items-center">
+                    <div class="col-auto">
+                        <div class="profile-avatar-lg" style="background: rgba(255,255,255,0.2);">
+                            {initials}
+                        </div>
                     </div>
-                </div>
-                <div class="col-6">
-                    <div class="info-box">
-                        <div class="small text-muted">Role</div>
-                        <div class="fw-semibold">{user.get_role_display()}</div>
-                    </div>
-                </div>
-                <div class="col-6">
-                    <div class="info-box">
-                        <div class="small text-muted">Joined</div>
-                        <div class="fw-semibold">{user.date_joined.strftime('%B %d, %Y')}</div>
-                    </div>
-                </div>
-                <div class="col-6">
-                    <div class="info-box">
-                        <div class="small text-muted">Status</div>
-                        <div class="fw-semibold text-{'success' if user.is_active else 'danger'}">
-                            {'Active' if user.is_active else 'Inactive'}
+                    <div class="col">
+                        <h4 class="text-white mb-1">{user.get_full_name() or user.username}</h4>
+                        <div class="d-flex flex-wrap gap-2 align-items-center">
+                            <span class="badge bg-white text-dark">
+                                <i class="fas fa-user me-1"></i> @{user.username}
+                            </span>
+                            <span class="badge bg-white text-dark">
+                                <i class="fas fa-envelope me-1"></i> {user.email}
+                            </span>
+                            <span class="badge bg-white text-{status_class}">
+                                <i class="fas fa-circle me-1"></i>
+                                {status_text}
+                            </span>
+                        </div>
+                        <div class="mt-2">
+                            <span class="badge bg-light text-dark">
+                                <i class="fas fa-{role_icon} me-1"></i>
+                                {user.get_role_display()}
+                            </span>
+                            <span class="badge bg-light text-dark ms-1">
+                                <i class="fas fa-calendar-alt me-1"></i>
+                                Joined {user.date_joined.strftime('%B %d, %Y')}
+                            </span>
                         </div>
                     </div>
                 </div>
             </div>
             
-            <h6 class="fw-bold mb-3">Library Statistics</h6>
-            <div class="row g-3">
-                <div class="col-4">
-                    <div class="stat-box text-center">
-                        <div class="stat-number">{active_borrowings}</div>
-                        <div class="stat-label-sm">Active Borrowings</div>
+            <div class="row g-3 p-4">
+                <div class="col-6 col-md-3">
+                    <div class="stat-card-profile">
+                        <div class="stat-icon-profile" style="background: rgba(99,102,241,0.1); color: #6366f1;">
+                            <i class="fas fa-hand-holding-heart"></i>
+                        </div>
+                        <div class="stat-number-profile">{active_borrowings}</div>
+                        <div class="stat-label-profile">Active Loans</div>
                     </div>
                 </div>
-                <div class="col-4">
-                    <div class="stat-box text-center">
-                        <div class="stat-number">{total_borrowings}</div>
-                        <div class="stat-label-sm">Total Borrowings</div>
+                <div class="col-6 col-md-3">
+                    <div class="stat-card-profile">
+                        <div class="stat-icon-profile" style="background: rgba(16,185,129,0.1); color: #10b981;">
+                            <i class="fas fa-book-open"></i>
+                        </div>
+                        <div class="stat-number-profile">{total_borrowings}</div>
+                        <div class="stat-label-profile">Total Borrowed</div>
                     </div>
                 </div>
-                <div class="col-4">
-                    <div class="stat-box text-center">
-                        <div class="stat-number text-{'danger' if fines_total > 0 else 'success'}">
+                <div class="col-6 col-md-3">
+                    <div class="stat-card-profile">
+                        <div class="stat-icon-profile" style="background: rgba(245,158,11,0.1); color: #f59e0b;">
+                            <i class="fas fa-clock"></i>
+                        </div>
+                        <div class="stat-number-profile">{active_reservations}</div>
+                        <div class="stat-label-profile">Reservations</div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="stat-card-profile">
+                        <div class="stat-icon-profile" style="background: rgba(239,68,68,0.1); color: {'#ef4444' if fines_total > 0 else '#10b981'};">
+                            <i class="fas fa-coins"></i>
+                        </div>
+                        <div class="stat-number-profile text-{fines_class}">
                             ${fines_total}
                         </div>
-                        <div class="stat-label-sm">Unpaid Fines</div>
+                        <div class="stat-label-profile">Unpaid Fines</div>
                     </div>
+                </div>
+            </div>
+            
+            <div class="px-4 pb-4">
+                <h6 class="fw-bold mb-3">
+                    <i class="fas fa-history me-2" style="color: #6366f1;"></i>
+                    Recent Activity
+                </h6>
+                <div class="activity-timeline">
+                    {recent_html}
                 </div>
             </div>
         </div>
         
         <style>
-            .user-avatar-large {{
-                width: 60px;
-                height: 60px;
-                background: linear-gradient(135deg, #6366f1, #10b981);
+            .profile-header-card {{
+                padding: 2rem;
+                border-radius: 20px 20px 0 0;
+                color: white;
+            }}
+            .profile-avatar-lg {{
+                width: 80px;
+                height: 80px;
                 border-radius: 50px;
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                color: white;
-                font-size: 1.5rem;
+                font-size: 2rem;
                 font-weight: 700;
+                color: white;
+                border: 3px solid rgba(255,255,255,0.3);
             }}
-            .info-box {{
+            .stat-card-profile {{
                 background: #f8fafc;
-                padding: 0.75rem;
-                border-radius: 12px;
+                border-radius: 16px;
+                padding: 1rem;
+                text-align: center;
+                transition: all 0.3s ease;
             }}
-            .stat-box {{
-                background: #f8fafc;
-                padding: 0.75rem;
-                border-radius: 12px;
+            .stat-card-profile:hover {{
+                transform: translateY(-2px);
+                box-shadow: 0 4px 12px rgba(0,0,0,0.08);
             }}
-            .stat-number {{
+            .stat-icon-profile {{
+                width: 45px;
+                height: 45px;
+                border-radius: 12px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                margin: 0 auto 0.5rem;
                 font-size: 1.2rem;
+            }}
+            .stat-number-profile {{
+                font-size: 1.5rem;
                 font-weight: 700;
                 color: #0f172a;
             }}
-            .stat-label-sm {{
-                font-size: 0.7rem;
+            .stat-label-profile {{
+                font-size: 0.65rem;
                 color: #64748b;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+            }}
+            .activity-timeline {{
+                max-height: 200px;
+                overflow-y: auto;
+            }}
+            .activity-timeline::-webkit-scrollbar {{
+                width: 4px;
+            }}
+            .activity-timeline::-webkit-scrollbar-thumb {{
+                background: #6366f1;
+                border-radius: 10px;
+            }}
+            .activity-timeline::-webkit-scrollbar-track {{
+                background: #f1f5f9;
+                border-radius: 10px;
+            }}
+            .activity-item {{
+                padding: 0.75rem 0;
+                border-bottom: 1px solid #e2e8f0;
+            }}
+            .activity-item:last-child {{
+                border-bottom: none;
+            }}
+            .activity-item:hover {{
+                background: #f8fafc;
+                margin: 0 -0.5rem;
+                padding-left: 0.5rem;
+                padding-right: 0.5rem;
+                border-radius: 8px;
+            }}
+            .text-success {{
+                color: #10b981 !important;
+            }}
+            .text-danger {{
+                color: #ef4444 !important;
             }}
         </style>
         """
         
         return HttpResponse(html)
-
-
-class AdminUserEditView(LoginRequiredMixin, UserPassesTestMixin, View):
-    """Edit user form (AJAX for modal)"""
-    
-    def test_func(self):
-        user = self.request.user
-        return user.is_staff or user.is_superuser or getattr(user, "role", None) == "ADMIN"
-
-    def get(self, request, pk):
-        user = get_object_or_404(User, pk=pk)
-        
-        html = f"""
-        <form method="post" action="/dashboard/admin/users/{user.id}/update/">
-            <input type="hidden" name="csrfmiddlewaretoken" value="{request.COOKIES.get('csrftoken', '')}">
-            
-            <div class="mb-3">
-                <label class="form-label">Username</label>
-                <input type="text" name="username" class="form-control" value="{user.username}" required>
-            </div>
-            <div class="mb-3">
-                <label class="form-label">Email</label>
-                <input type="email" name="email" class="form-control" value="{user.email}" required>
-            </div>
-            <div class="row">
-                <div class="col-md-6 mb-3">
-                    <label class="form-label">First Name</label>
-                    <input type="text" name="first_name" class="form-control" value="{user.first_name}">
-                </div>
-                <div class="col-md-6 mb-3">
-                    <label class="form-label">Last Name</label>
-                    <input type="text" name="last_name" class="form-control" value="{user.last_name}">
-                </div>
-            </div>
-            <div class="mb-3">
-                <label class="form-label">Role</label>
-                <select name="role" class="form-select">
-                    <option value="MEMBER" {'selected' if user.role == 'MEMBER' else ''}>Member</option>
-                    <option value="ADMIN" {'selected' if user.role == 'ADMIN' else ''}>Admin</option>
-                </select>
-            </div>
-            <div class="mb-3">
-                <label class="form-label">Status</label>
-                <select name="is_active" class="form-select">
-                    <option value="true" {'selected' if user.is_active else ''}>Active</option>
-                    <option value="false" {'selected' if not user.is_active else ''}>Inactive</option>
-                </select>
-            </div>
-            <div class="mb-3">
-                <label class="form-label">New Password (leave blank to keep current)</label>
-                <input type="password" name="password" class="form-control" placeholder="Enter new password...">
-            </div>
-            <div class="modal-footer px-0 pb-0">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="submit" class="btn btn-primary">Save Changes</button>
-            </div>
-        </form>
-        """
-        
-        return HttpResponse(html)
-
-
-class AdminUserUpdateView(LoginRequiredMixin, UserPassesTestMixin, View):
-    """Update user information"""
-    
-    def test_func(self):
-        user = self.request.user
-        return user.is_staff or user.is_superuser or getattr(user, "role", None) == "ADMIN"
-
-    def post(self, request, pk):
-        from django.http import JsonResponse
-        
-        user = get_object_or_404(User, pk=pk)
-        
-        username = request.POST.get('username')
-        email = request.POST.get('email')
-        first_name = request.POST.get('first_name', '')
-        last_name = request.POST.get('last_name', '')
-        role = request.POST.get('role')
-        is_active = request.POST.get('is_active') == 'true'
-        password = request.POST.get('password', '')
-        
-        # Check username uniqueness
-        if User.objects.exclude(pk=pk).filter(username=username).exists():
-            return JsonResponse({'success': False, 'error': f'Username "{username}" already taken.'})
-        
-        # Check email uniqueness
-        if User.objects.exclude(pk=pk).filter(email=email).exists():
-            return JsonResponse({'success': False, 'error': f'Email "{email}" already taken.'})
-        
-        user.username = username
-        user.email = email
-        user.first_name = first_name
-        user.last_name = last_name
-        user.role = role
-        user.is_active = is_active
-        
-        if password:
-            user.set_password(password)
-        
-        user.save()
-        
-        return JsonResponse({'success': True, 'message': f'User "{username}" updated successfully.'})
-    
-class AdminUserDataView(LoginRequiredMixin, UserPassesTestMixin, View):
-    """Get user data as JSON for edit form"""
-    
-    def test_func(self):
-        user = self.request.user
-        return user.is_staff or user.is_superuser or getattr(user, "role", None) == "ADMIN"
-
-    def get(self, request, pk):
-        user = get_object_or_404(User, pk=pk)
-        data = {
-            'id': user.id,
-            'username': user.username,
-            'email': user.email,
-            'first_name': user.first_name,
-            'last_name': user.last_name,
-            'role': user.role,
-            'is_active': user.is_active,
-            'date_joined': user.date_joined.strftime('%Y-%m-%d'),
-        }
-        return JsonResponse(data)
