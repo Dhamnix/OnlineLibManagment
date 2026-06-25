@@ -311,3 +311,127 @@ class PayFineView(LoginRequiredMixin, View):
         fine.save()
         messages.success(request, f"Fine of {fine.amount} for '{fine.borrow.book.title}' has been successfully paid.")
         return redirect("borrowing:fine_list")
+
+class BorrowListView(LoginRequiredMixin, ListView):
+    model = Borrow
+    template_name = "borrowing/borrow_list.html"
+    context_object_name = "borrowings"
+    paginate_by = 10
+
+    def get_queryset(self):
+        user = self.request.user
+        qs = Borrow.objects.select_related("book", "user")
+        if user.is_superuser or getattr(user, "role", None) == "ADMIN" or user.has_perm("borrowing.manage_borrowings"):
+            return qs.all()
+        return qs.filter(user=user)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        user = self.request.user
+        
+        # Get all borrowings for this user
+        if user.is_superuser or getattr(user, "role", None) == "ADMIN":
+            all_borrowings = Borrow.objects.all()
+        else:
+            all_borrowings = Borrow.objects.filter(user=user)
+        
+        now = timezone.now()
+        
+        context['total_active'] = all_borrowings.filter(
+            status=Borrow.StatusChoices.BORROWED
+        ).count()
+        
+        # Due in next 3 days
+        three_days_later = now + timezone.timedelta(days=3)
+        context['due_soon_count'] = all_borrowings.filter(
+            status=Borrow.StatusChoices.BORROWED,
+            due_date__gte=now,
+            due_date__lte=three_days_later
+        ).count()
+        
+        context['overdue_count'] = all_borrowings.filter(
+            status=Borrow.StatusChoices.BORROWED,
+            due_date__lt=now
+        ).count()
+        
+        context['now'] = now
+        
+        return context
+    
+    
+class FineListView(LoginRequiredMixin, ListView):
+    model = Fine
+    template_name = "borrowing/fine_list.html"
+    context_object_name = "fines"
+    paginate_by = 10
+
+    def get_queryset(self):
+        user = self.request.user
+        
+        # Dynamically calculate overdue fines to show accurate numbers
+        if user.is_superuser or getattr(user, "role", None) == "ADMIN" or user.has_perm("borrowing.manage_borrowings"):
+            from .services import update_all_overdue_fines
+            update_all_overdue_fines()
+            return Fine.objects.select_related("borrow", "user", "borrow__book").all()
+        else:
+            from .services import create_or_update_fine_for_borrow
+            active_overdue = Borrow.objects.filter(
+                user=user,
+                status=Borrow.StatusChoices.BORROWED,
+                due_date__lt=timezone.now()
+            )
+            for borrow in active_overdue:
+                create_or_update_fine_for_borrow(borrow)
+            return Fine.objects.select_related("borrow", "borrow__book").filter(user=user)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        user = self.request.user
+        
+        # Filter fines based on user role
+        if user.is_superuser or getattr(user, "role", None) == "ADMIN":
+            all_fines = Fine.objects.all()
+        else:
+            all_fines = Fine.objects.filter(user=user)
+        
+        # Calculate statistics
+        unpaid_fines = all_fines.filter(is_paid=False)
+        paid_fines = all_fines.filter(is_paid=True)
+        
+        from django.db.models import Sum
+        context['total_unpaid_amount'] = unpaid_fines.aggregate(total=Sum('amount'))['total'] or 0
+        context['total_paid_amount'] = paid_fines.aggregate(total=Sum('amount'))['total'] or 0
+        context['unpaid_count'] = unpaid_fines.count()
+        context['paid_count'] = paid_fines.count()
+        context['now'] = timezone.now()
+        
+        return context
+    
+class ReservationListView(LoginRequiredMixin, ListView):
+    model = Reservation
+    template_name = "borrowing/reservation_list.html"
+    context_object_name = "reservations"
+    paginate_by = 10
+
+    def get_queryset(self):
+        user = self.request.user
+        qs = Reservation.objects.select_related("book", "user").order_by("-reservation_date")
+        if user.is_superuser or getattr(user, "role", None) == "ADMIN" or user.has_perm("borrowing.manage_borrowings"):
+            return qs
+        return qs.filter(user=user)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        user = self.request.user
+        
+        # Filter reservations based on user role
+        if user.is_superuser or getattr(user, "role", None) == "ADMIN":
+            all_reservations = Reservation.objects.all()
+        else:
+            all_reservations = Reservation.objects.filter(user=user)
+        
+        context['pending_count'] = all_reservations.filter(status=Reservation.StatusChoices.PENDING).count()
+        context['available_count'] = all_reservations.filter(status=Reservation.StatusChoices.AVAILABLE).count()
+        context['completed_count'] = all_reservations.filter(status=Reservation.StatusChoices.COMPLETED).count()
+        
+        return context

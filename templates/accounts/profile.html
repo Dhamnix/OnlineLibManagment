@@ -1,80 +1,523 @@
 {% extends "base.html" %}
+{% load static %}
+
+{% block title %}Profile | {{ user.get_full_name|default:user.username }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Profile Page Custom Styles */
+    .profile-header {
+        background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+        border-radius: 32px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .profile-header::before {
+        content: '';
+        position: absolute;
+        top: -30%;
+        right: -10%;
+        width: 60%;
+        height: 150%;
+        background: rgba(255, 255, 255, 0.05);
+        transform: rotate(25deg);
+        pointer-events: none;
+    }
+    
+    .profile-avatar {
+        width: 100px;
+        height: 100px;
+        background: linear-gradient(135deg, #fff, rgba(255,255,255,0.9));
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 3rem;
+        font-weight: 700;
+        color: var(--primary);
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+        border: 4px solid rgba(255,255,255,0.3);
+        transition: transform 0.3s ease;
+    }
+    
+    .profile-avatar:hover {
+        transform: scale(1.05);
+    }
+    
+    .profile-name {
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: white;
+        margin-bottom: 0.25rem;
+    }
+    
+    .profile-role {
+        display: inline-block;
+        padding: 4px 16px;
+        background: rgba(255,255,255,0.2);
+        border-radius: 40px;
+        font-size: 0.75rem;
+        font-weight: 500;
+        color: white;
+        backdrop-filter: blur(10px);
+    }
+    
+    .stat-box-profile {
+        background: white;
+        border-radius: 24px;
+        padding: 1.25rem;
+        text-align: center;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    }
+    
+    .stat-box-profile:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 12px 28px rgba(0, 0, 0, 0.12);
+    }
+    
+    .stat-icon-profile {
+        width: 48px;
+        height: 48px;
+        background: linear-gradient(135deg, rgba(99,102,241,0.1), rgba(16,185,129,0.1));
+        border-radius: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 0.75rem;
+    }
+    
+    .stat-icon-profile i {
+        font-size: 1.3rem;
+        color: var(--primary);
+    }
+    
+    .stat-number-profile {
+        font-size: 1.8rem;
+        font-weight: 800;
+        color: var(--dark);
+        line-height: 1.2;
+    }
+    
+    .stat-label-profile {
+        font-size: 0.7rem;
+        color: var(--gray);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .info-card {
+        background: white;
+        border-radius: 24px;
+        padding: 1.5rem;
+        height: 100%;
+        transition: all 0.3s ease;
+        border: 1px solid var(--gray-light);
+    }
+    
+    .info-card:hover {
+        border-color: var(--primary);
+        box-shadow: 0 8px 24px rgba(99,102,241,0.08);
+    }
+    
+    .info-label {
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--gray);
+        margin-bottom: 0.5rem;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+    
+    .info-label i {
+        font-size: 0.8rem;
+        color: var(--primary);
+    }
+    
+    .info-value {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--dark);
+        word-break: break-word;
+    }
+    
+    .activity-timeline {
+        position: relative;
+        padding-left: 1.5rem;
+    }
+    
+    .activity-timeline::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background: linear-gradient(180deg, var(--primary), var(--secondary));
+    }
+    
+    .activity-item {
+        position: relative;
+        padding-bottom: 1.25rem;
+    }
+    
+    .activity-item::before {
+        content: '';
+        position: absolute;
+        left: -1.5rem;
+        top: 0.25rem;
+        width: 10px;
+        height: 10px;
+        background: var(--primary);
+        border-radius: 50%;
+        border: 2px solid white;
+        box-shadow: 0 0 0 2px var(--primary-light);
+    }
+    
+    .activity-title {
+        font-weight: 600;
+        font-size: 0.85rem;
+        margin-bottom: 0.25rem;
+    }
+    
+    .activity-date {
+        font-size: 0.7rem;
+        color: var(--gray);
+    }
+    
+    .edit-btn {
+        position: absolute;
+        top: 1rem;
+        right: 1rem;
+        background: rgba(255,255,255,0.2);
+        border: none;
+        color: white;
+        padding: 8px 16px;
+        border-radius: 40px;
+        font-size: 0.8rem;
+        transition: all 0.3s ease;
+        backdrop-filter: blur(10px);
+    }
+    
+    .edit-btn:hover {
+        background: rgba(255,255,255,0.3);
+        transform: translateY(-2px);
+    }
+    
+    @media (max-width: 768px) {
+        .profile-header {
+            padding: 1.5rem;
+            text-align: center;
+        }
+        
+        .profile-avatar {
+            width: 80px;
+            height: 80px;
+            font-size: 2rem;
+            margin: 0 auto 1rem;
+        }
+        
+        .profile-name {
+            font-size: 1.4rem;
+        }
+        
+        .stat-number-profile {
+            font-size: 1.4rem;
+        }
+        
+        .edit-btn {
+            position: static;
+            margin-top: 1rem;
+            display: inline-block;
+        }
+    }
+</style>
+{% endblock %}
 
 {% block content %}
-<section class="min-vh-100 bg-light py-5">
+<section class="py-4 py-md-5 bg-light min-vh-100">
     <div class="container">
-        <div class="row justify-content-center">
-            <div class="col-12 col-lg-8">
-                <div class="card border-0 shadow-sm">
-                    <div class="card-body p-4 p-md-5">
-                        <div class="d-flex flex-column flex-md-row justify-content-between gap-3 mb-4">
-                            <div>
-                                <h1 class="h3 mb-2">Profile</h1>
-                                <p class="text-muted mb-0">Your library account details.</p>
+        
+        <!-- Profile Header -->
+        <div class="profile-header">
+            <div class="row align-items-center">
+                <div class="col-md-auto text-center text-md-start">
+                    <div class="profile-avatar mx-auto mx-md-0">
+                        {{ user.username|first|upper }}
+                    </div>
+                </div>
+                <div class="col-md mt-3 mt-md-0 text-center text-md-start">
+                    <h1 class="profile-name">{{ user.get_full_name|default:user.username }}</h1>
+                    <div>
+                        <span class="profile-role">
+                            <i class="fas fa-shield-alt me-1"></i> {{ user.get_role_display }}
+                        </span>
+                        {% if user.is_staff %}
+                            <span class="profile-role ms-2" style="background: rgba(16,185,129,0.3);">
+                                <i class="fas fa-crown me-1"></i> Staff
+                            </span>
+                        {% endif %}
+                    </div>
+                    <p class="text-white-50 mt-2 mb-0 small">
+                        <i class="fas fa-calendar-alt me-1"></i> Member since {{ user.date_joined|date:"F Y" }}
+                    </p>
+                </div>
+                <div class="col-md-auto text-center text-md-end mt-3 mt-md-0">
+                    <button class="edit-btn" id="editProfileBtn" data-bs-toggle="modal" data-bs-target="#editProfileModal">
+                        <i class="fas fa-pen me-1"></i> Edit Profile
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags|default:'info' }} alert-dismissible fade show mb-4" role="alert">
+                    <i class="fas fa-{% if message.tags == 'success' %}check-circle{% else %}info-circle{% endif %} me-2"></i>
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+
+        <!-- Stats Row -->
+        <div class="row g-3 mb-4">
+            <div class="col-sm-6 col-lg-3">
+                <div class="stat-box-profile">
+                    <div class="stat-icon-profile">
+                        <i class="fas fa-book-open"></i>
+                    </div>
+                    <div class="stat-number-profile">{{ total_borrowed|default:"0" }}</div>
+                    <div class="stat-label-profile">Books Borrowed</div>
+                </div>
+            </div>
+            <div class="col-sm-6 col-lg-3">
+                <div class="stat-box-profile">
+                    <div class="stat-icon-profile">
+                        <i class="fas fa-hand-holding-heart"></i>
+                    </div>
+                    <div class="stat-number-profile">{{ active_borrowings|default:"0" }}</div>
+                    <div class="stat-label-profile">Active Loans</div>
+                </div>
+            </div>
+            <div class="col-sm-6 col-lg-3">
+                <div class="stat-box-profile">
+                    <div class="stat-icon-profile">
+                        <i class="fas fa-clock"></i>
+                    </div>
+                    <div class="stat-number-profile">{{ active_reservations|default:"0" }}</div>
+                    <div class="stat-label-profile">Reservations</div>
+                </div>
+            </div>
+            <div class="col-sm-6 col-lg-3">
+                <div class="stat-box-profile">
+                    <div class="stat-icon-profile">
+                        <i class="fas fa-coins"></i>
+                    </div>
+                    <div class="stat-number-profile {% if total_fines > 0 %}text-danger{% endif %}">
+                        ${{ total_fines|default:"0" }}
+                    </div>
+                    <div class="stat-label-profile">Unpaid Fines</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-4">
+            <!-- Personal Information -->
+            <div class="col-lg-6">
+                <div class="info-card">
+                    <h6 class="fw-bold mb-4">
+                        <i class="fas fa-user-circle me-2" style="color: var(--primary);"></i>
+                        Personal Information
+                    </h6>
+                    
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <div class="info-label">
+                                <i class="fas fa-user"></i> Username
                             </div>
-
-                            <form method="post" action="{% url 'accounts:logout' %}">
-                                {% csrf_token %}
-                                <button type="submit" class="btn btn-outline-danger">Log out</button>
-                            </form>
+                            <div class="info-value">{{ user.username }}</div>
                         </div>
+                        
+                        <div class="col-12">
+                            <div class="info-label">
+                                <i class="fas fa-envelope"></i> Email Address
+                            </div>
+                            <div class="info-value">{{ user.email }}</div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="info-label">
+                                <i class="fas fa-user-tag"></i> First Name
+                            </div>
+                            <div class="info-value">{{ user.first_name|default:"—" }}</div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="info-label">
+                                <i class="fas fa-user-tag"></i> Last Name
+                            </div>
+                            <div class="info-value">{{ user.last_name|default:"—" }}</div>
+                        </div>
+                        
+                        <div class="col-12">
+                            <div class="info-label">
+                                <i class="fas fa-phone"></i> Phone (Coming Soon)
+                            </div>
+                            <div class="info-value text-muted">Not yet added</div>
+                        </div>
+                    </div>
+                    
+                    <hr class="my-4">
+                    
+                    <div class="d-flex gap-2 flex-wrap">
+                        <a href="#" class="btn btn-outline-primary btn-sm" id="changePasswordBtn">
+                            <i class="fas fa-key me-1"></i> Change Password
+                        </a>
+                        <a href="#" class="btn btn-outline-secondary btn-sm">
+                            <i class="fas fa-bell me-1"></i> Notification Settings
+                        </a>
+                    </div>
+                </div>
+            </div>
 
-                        {% if messages %}
-                            {% for message in messages %}
-                                <div class="alert alert-{{ message.tags|default:'info' }} alert-dismissible fade show" role="alert">
-                                    {{ message }}
-                                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            <!-- Recent Activity -->
+            <div class="col-lg-6">
+                <div class="info-card">
+                    <h6 class="fw-bold mb-4">
+                        <i class="fas fa-history me-2" style="color: var(--primary);"></i>
+                        Recent Activity
+                    </h6>
+                    
+                    {% if recent_borrowings %}
+                        <div class="activity-timeline">
+                            {% for borrow in recent_borrowings %}
+                                <div class="activity-item">
+                                    <div class="activity-title">
+                                        {% if borrow.status == 'BORROWED' %}
+                                            <i class="fas fa-book text-primary me-1"></i>
+                                        {% else %}
+                                            <i class="fas fa-check-circle text-success me-1"></i>
+                                        {% endif %}
+                                        {{ borrow.book.title }}
+                                    </div>
+                                    <div class="activity-date">
+                                        {% if borrow.status == 'BORROWED' %}
+                                            Borrowed on {{ borrow.borrow_date|date:"M d, Y" }}
+                                            • Due: {{ borrow.due_date|date:"M d, Y" }}
+                                            {% if borrow.due_date|timesince >= "0" %}
+                                                <span class="text-warning ms-1">
+                                                    ({{ borrow.due_date|timeuntil }} left)
+                                                </span>
+                                            {% endif %}
+                                        {% else %}
+                                            Returned on {{ borrow.return_date|date:"M d, Y" }}
+                                        {% endif %}
+                                    </div>
                                 </div>
                             {% endfor %}
-                        {% endif %}
-
-                        <div class="row g-3">
-                            <div class="col-md-6">
-                                <div class="border rounded p-3 h-100 bg-white">
-                                    <div class="small text-muted text-uppercase">Username</div>
-                                    <div class="fw-semibold">{{ user.username }}</div>
-                                </div>
-                            </div>
-
-                            <div class="col-md-6">
-                                <div class="border rounded p-3 h-100 bg-white">
-                                    <div class="small text-muted text-uppercase">Email</div>
-                                    <div class="fw-semibold">{{ user.email }}</div>
-                                </div>
-                            </div>
-
-                            <div class="col-md-6">
-                                <div class="border rounded p-3 h-100 bg-white">
-                                    <div class="small text-muted text-uppercase">First name</div>
-                                    <div class="fw-semibold">{{ user.first_name }}</div>
-                                </div>
-                            </div>
-
-                            <div class="col-md-6">
-                                <div class="border rounded p-3 h-100 bg-white">
-                                    <div class="small text-muted text-uppercase">Last name</div>
-                                    <div class="fw-semibold">{{ user.last_name }}</div>
-                                </div>
-                            </div>
-
-                            <div class="col-md-6">
-                                <div class="border rounded p-3 h-100 bg-white">
-                                    <div class="small text-muted text-uppercase">Role</div>
-                                    <div class="fw-semibold">{{ user.get_role_display }}</div>
-                                </div>
-                            </div>
-
-                            <div class="col-md-6">
-                                <div class="border rounded p-3 h-100 bg-white">
-                                    <div class="small text-muted text-uppercase">Date joined</div>
-                                    <div class="fw-semibold">{{ user.date_joined|date:"F j, Y, g:i a" }}</div>
-                                </div>
-                            </div>
                         </div>
+                    {% else %}
+                        <div class="text-center py-4">
+                            <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                            <p class="text-muted small mb-0">No recent borrowing activity</p>
+                            <a href="{% url 'books:book_list' %}" class="btn btn-sm btn-primary mt-3">
+                                Browse Books
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="info-card" style="background: linear-gradient(135deg, #f8fafc, white);">
+                    <h6 class="fw-bold mb-3">
+                        <i class="fas fa-bolt me-2" style="color: var(--primary);"></i>
+                        Quick Actions
+                    </h6>
+                    <div class="d-flex flex-wrap gap-2">
+                        <a href="{% url 'books:book_list' %}" class="btn btn-sm btn-primary">
+                            <i class="fas fa-search me-1"></i> Browse Books
+                        </a>
+                        <a href="{% url 'borrowing:borrow_list' %}" class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-hand-holding-heart me-1"></i> My Borrowings
+                        </a>
+                        <a href="{% url 'borrowing:reservation_list' %}" class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-clock me-1"></i> My Reservations
+                        </a>
+                        <a href="{% url 'borrowing:fine_list' %}" class="btn btn-sm btn-outline-danger">
+                            <i class="fas fa-coins me-1"></i> Pay Fines
+                        </a>
+                        {% if user.role == 'ADMIN' or user.is_superuser %}
+                            <a href="{% url 'dashboard:admin-dashboard' %}" class="btn btn-sm btn-outline-secondary">
+                                <i class="fas fa-chart-line me-1"></i> Admin Panel
+                            </a>
+                        {% endif %}
                     </div>
                 </div>
             </div>
         </div>
     </div>
 </section>
+
+<!-- Edit Profile Modal (Simple version) -->
+<div class="modal fade" id="editProfileModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="border-radius: 24px;">
+            <div class="modal-header border-0 pt-4 px-4">
+                <h5 class="modal-title fw-bold">
+                    <i class="fas fa-user-edit me-2" style="color: var(--primary);"></i>
+                    Edit Profile
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body px-4">
+                <form method="post" action="{% url 'accounts:profile_update' %}">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold">First Name</label>
+                        <input type="text" name="first_name" class="form-control" value="{{ user.first_name }}">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold">Last Name</label>
+                        <input type="text" name="last_name" class="form-control" value="{{ user.last_name }}">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold">Email</label>
+                        <input type="email" name="email" class="form-control" value="{{ user.email }}" required>
+                    </div>
+                    <div class="alert alert-info small">
+                        <i class="fas fa-info-circle me-1"></i>
+                        For security, username changes require admin approval.
+                    </div>
+                    <div class="d-flex gap-2 mt-4">
+                        <button type="submit" class="btn btn-primary flex-grow-1">
+                            Save Changes
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                            Cancel
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Change Password button placeholder
+    document.getElementById('changePasswordBtn')?.addEventListener('click', function(e) {
+        e.preventDefault();
+        alert('Password change functionality coming soon!');
+    });
+</script>
+
 {% endblock %}

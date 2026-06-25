@@ -1,133 +1,390 @@
 {% extends "base.html" %}
+{% load static %}
+
+{% block title %}My Borrowings | OnlineLib{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Borrow Card Styles */
+    .borrow-stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-bottom: 2rem;
+    }
+    
+    .stat-badge {
+        background: white;
+        border-radius: 20px;
+        padding: 1rem 1.25rem;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        transition: all 0.3s ease;
+    }
+    
+    .stat-badge:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+    }
+    
+    .stat-badge-icon {
+        width: 48px;
+        height: 48px;
+        background: linear-gradient(135deg, rgba(99,102,241,0.1), rgba(16,185,129,0.1));
+        border-radius: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .stat-badge-icon i {
+        font-size: 1.3rem;
+        color: var(--primary);
+    }
+    
+    .stat-badge-info h4 {
+        font-size: 1.5rem;
+        font-weight: 700;
+        margin: 0;
+        color: var(--dark);
+    }
+    
+    .stat-badge-info p {
+        font-size: 0.7rem;
+        color: var(--gray);
+        margin: 0;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    /* Borrow Card */
+    .borrow-card {
+        background: white;
+        border-radius: 24px;
+        padding: 1.25rem;
+        margin-bottom: 1rem;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        border: 1px solid var(--gray-light);
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .borrow-card:hover {
+        transform: translateX(4px);
+        border-color: var(--primary-light);
+        box-shadow: 0 8px 24px rgba(99,102,241,0.12);
+    }
+    
+    .borrow-card::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 4px;
+        background: var(--primary);
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    }
+    
+    .borrow-card:hover::before {
+        opacity: 1;
+    }
+    
+    .book-cover-mini {
+        width: 70px;
+        height: 90px;
+        background: linear-gradient(135deg, #f1f5f9, #e2e8f0);
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+    }
+    
+    .book-cover-mini img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+    
+    .book-cover-mini i {
+        font-size: 2rem;
+        color: var(--gray);
+    }
+    
+    .due-date-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 5px 12px;
+        border-radius: 30px;
+        font-size: 0.7rem;
+        font-weight: 600;
+    }
+    
+    .due-date-urgent {
+        background: #fee2e2;
+        color: #dc2626;
+    }
+    
+    .due-date-warning {
+        background: #fef3c7;
+        color: #d97706;
+    }
+    
+    .due-date-safe {
+        background: #dcfce7;
+        color: #059669;
+    }
+    
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 14px;
+        border-radius: 40px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+    
+    .status-borrowed {
+        background: #e0e7ff;
+        color: #4f46e5;
+    }
+    
+    .return-btn {
+        transition: all 0.3s ease;
+        border-radius: 40px;
+        padding: 8px 20px;
+    }
+    
+    .return-btn:hover {
+        transform: scale(1.02);
+    }
+    
+    .empty-state-card {
+        background: white;
+        border-radius: 32px;
+        padding: 3rem;
+        text-align: center;
+    }
+    
+    @media (max-width: 768px) {
+        .borrow-card .row > div:first-child {
+            margin-bottom: 1rem;
+        }
+        
+        .book-cover-mini {
+            width: 60px;
+            height: 80px;
+        }
+        
+        .empty-state-card {
+            padding: 2rem;
+        }
+    }
+</style>
+{% endblock %}
 
 {% block content %}
-<section class="py-5 bg-light min-vh-100">
+<section class="py-4 py-md-5 bg-light min-vh-100">
     <div class="container">
+        
+        <!-- Header -->
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4">
+            <div>
+                <h1 class="fw-bold mb-2" style="font-size: 1.8rem;">
+                    <i class="fas fa-hand-holding-heart me-2" style="color: var(--primary);"></i>
+                    My Borrowings
+                </h1>
+                <p class="text-muted">
+                    {% if user.role == 'ADMIN' or user.is_superuser %}
+                        Manage all library borrowings across the system.
+                    {% else %}
+                        Track your active book loans and manage returns.
+                    {% endif %}
+                </p>
+            </div>
+            <a href="{% url 'books:book_list' %}" class="btn btn-primary mt-3 mt-md-0">
+                <i class="fas fa-search me-2"></i> Browse More Books
+            </a>
+        </div>
+
         {% if messages %}
             {% for message in messages %}
-                <div class="alert alert-{{ message.tags|default:'info' }} alert-dismissible fade show" role="alert">
+                <div class="alert alert-{{ message.tags|default:'info' }} alert-dismissible fade show mb-4" role="alert">
+                    <i class="fas fa-{% if message.tags == 'success' %}check-circle{% else %}info-circle{% endif %} me-2"></i>
                     {{ message }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                 </div>
             {% endfor %}
         {% endif %}
 
-        <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4">
-            <div>
-                <h1 class="h3 mb-2">Borrowings</h1>
-                <p class="text-muted mb-0">
-                    {% if user.role == 'ADMIN' or user.is_superuser %}
-                        Manage all student and staff book borrowings.
-                    {% else %}
-                        Track your active and historical book borrowings.
-                    {% endif %}
-                </p>
+        <!-- Stats Cards -->
+        <div class="borrow-stats-grid">
+            <div class="stat-badge">
+                <div class="stat-badge-icon">
+                    <i class="fas fa-book-open"></i>
+                </div>
+                <div class="stat-badge-info">
+                    <h4>{{ total_active|default:"0" }}</h4>
+                    <p>Active Loans</p>
+                </div>
             </div>
-            <a href="{% url 'books:book_list' %}" class="btn btn-primary mt-3 mt-md-0">Browse Books</a>
-        </div>
-
-        <div class="card border-0 shadow-sm">
-            <div class="card-body p-0">
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0">
-                        <thead class="table-light">
-                            <tr>
-                                {% if user.role == 'ADMIN' or user.is_superuser %}
-                                    <th>User</th>
-                                {% endif %}
-                                <th>Book Title</th>
-                                <th>Borrow Date</th>
-                                <th>Due Date</th>
-                                <th>Return Date</th>
-                                <th>Status</th>
-                                <th class="text-end">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for borrow in borrowings %}
-                                <tr>
-                                    {% if user.role == 'ADMIN' or user.is_superuser %}
-                                        <td>
-                                            <div class="fw-semibold">{{ borrow.user.username }}</div>
-                                            <div class="small text-muted">{{ borrow.user.email }}</div>
-                                        </td>
-                                    {% endif %}
-                                    <td>
-                                        <div class="fw-semibold text-dark">{{ borrow.book.title }}</div>
-                                        <div class="small text-muted">by {{ borrow.book.author }}</div>
-                                    </td>
-                                    <td>{{ borrow.borrow_date|date:"M d, Y, g:i a" }}</td>
-                                    <td>{{ borrow.due_date|date:"M d, Y" }}</td>
-                                    <td>
-                                        {% if borrow.return_date %}
-                                            {{ borrow.return_date|date:"M d, Y, g:i a" }}
-                                        {% else %}
-                                            <span class="text-muted">—</span>
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        {% if borrow.status == 'BORROWED' %}
-                                            <span class="badge bg-warning text-dark">Borrowed</span>
-                                        {% else %}
-                                            <span class="badge bg-success">Returned</span>
-                                        {% endif %}
-                                    </td>
-                                    <td class="text-end">
-                                        {% if borrow.status == 'BORROWED' %}
-                                            <form method="post" action="{% url 'borrowing:return_book' borrow.pk %}" class="d-inline">
-                                                {% csrf_token %}
-                                                <button type="submit" class="btn btn-sm btn-outline-primary">Return Book</button>
-                                            </form>
-                                        {% else %}
-                                            <button class="btn btn-sm btn-light" disabled>Completed</button>
-                                        {% endif %}
-                                    </td>
-                                </tr>
-                            {% empty %}
-                                <tr>
-                                    <td colspan="{% if user.role == 'ADMIN' or user.is_superuser %}7{% else %}6{% endif %}" class="text-center py-5 text-muted">
-                                        No borrowing records found.
-                                    </td>
-                                </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+            <div class="stat-badge">
+                <div class="stat-badge-icon">
+                    <i class="fas fa-clock"></i>
+                </div>
+                <div class="stat-badge-info">
+                    <h4>{{ due_soon_count|default:"0" }}</h4>
+                    <p>Due in 3 Days</p>
+                </div>
+            </div>
+            <div class="stat-badge">
+                <div class="stat-badge-icon">
+                    <i class="fas fa-exclamation-triangle"></i>
+                </div>
+                <div class="stat-badge-info">
+                    <h4 class="text-danger">{{ overdue_count|default:"0" }}</h4>
+                    <p>Overdue</p>
                 </div>
             </div>
         </div>
 
+        <!-- Borrowings List -->
+        {% if borrowings %}
+            {% with has_active=False %}
+                {% for borrow in borrowings %}
+                    {% if borrow.status == 'BORROWED' %}
+                        <div class="borrow-card">
+                            <div class="row align-items-center">
+                                <!-- Book Info -->
+                                <div class="col-12 col-md-6">
+                                    <div class="d-flex gap-3">
+                                        <div class="book-cover-mini flex-shrink-0">
+                                            {% if borrow.book.cover_image %}
+                                                <img src="{{ borrow.book.cover_image.url }}" alt="{{ borrow.book.title }}">
+                                            {% else %}
+                                                <i class="fas fa-book"></i>
+                                            {% endif %}
+                                        </div>
+                                        <div>
+                                            <h6 class="fw-bold mb-1">{{ borrow.book.title }}</h6>
+                                            <p class="small text-muted mb-1">{{ borrow.book.author }}</p>
+                                            <span class="badge bg-secondary">{{ borrow.book.genre }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Borrow Info -->
+                                <div class="col-6 col-md-3 mt-3 mt-md-0">
+                                    <div class="small text-muted text-uppercase mb-1">Borrowed on</div>
+                                    <div class="fw-semibold">{{ borrow.borrow_date|date:"M d, Y" }}</div>
+                                    <div class="small text-muted mt-2">Due date</div>
+                                    <div class="fw-semibold">{{ borrow.due_date|date:"M d, Y" }}</div>
+                                </div>
+                                
+                                <!-- Status & Actions -->
+                                <div class="col-6 col-md-3 mt-3 mt-md-0 text-md-end">
+                                    <div class="mb-3">
+                                        {% if borrow.due_date < now %}
+                                            <span class="status-badge" style="background: #fee2e2; color: #dc2626;">
+                                                <i class="fas fa-exclamation-circle"></i> Overdue
+                                            </span>
+                                        {% else %}
+                                            <span class="status-badge status-borrowed">
+                                                <i class="fas fa-book"></i> Borrowed
+                                            </span>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <!-- Due Date Reminder -->
+                                    {% if borrow.due_date >= now %}
+                                        {% with days_left=borrow.due_date|timeuntil %}
+                                            {% if "day" in days_left %}
+                                                <div class="mb-3">
+                                                    {% if "1 day" in days_left or "2 day" in days_left or "3 day" in days_left %}
+                                                        <span class="due-date-badge due-date-warning">
+                                                            <i class="fas fa-hourglass-half"></i> Due in {{ days_left }}
+                                                        </span>
+                                                    {% else %}
+                                                        <span class="due-date-badge due-date-safe">
+                                                            <i class="fas fa-check-circle"></i> Due in {{ days_left }}
+                                                        </span>
+                                                    {% endif %}
+                                                </div>
+                                            {% elif "hour" in days_left %}
+                                                <div class="mb-3">
+                                                    <span class="due-date-badge due-date-urgent">
+                                                        <i class="fas fa-hourglass-end"></i> Due very soon!
+                                                    </span>
+                                                </div>
+                                            {% endif %}
+                                        {% endwith %}
+                                    {% endif %}
+                                    
+                                    <form method="post" action="{% url 'borrowing:return_book' borrow.pk %}" class="d-inline">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-primary return-btn" 
+                                                onclick="return confirm('Are you sure you want to return this book?')">
+                                            <i class="fas fa-undo-alt me-1"></i> Return Book
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                        {% with has_active=True %}{% endwith %}
+                    {% endif %}
+                {% endfor %}
+                
+                {% if not has_active %}
+                    <div class="empty-state-card mt-4">
+                        <i class="fas fa-check-circle fa-4x text-muted mb-3"></i>
+                        <h5 class="text-muted">All Caught Up!</h5>
+                        <p class="text-muted small">You have no active borrowings right now.</p>
+                        <a href="{% url 'books:book_list' %}" class="btn btn-primary mt-2">
+                            <i class="fas fa-search me-1"></i> Browse Books
+                        </a>
+                    </div>
+                {% endif %}
+            {% endwith %}
+        {% else %}
+            <div class="empty-state-card">
+                <i class="fas fa-hand-holding-heart fa-4x text-muted mb-3"></i>
+                <h5 class="text-muted">No Borrowings Yet</h5>
+                <p class="text-muted small">Start your reading journey by borrowing a book.</p>
+                <a href="{% url 'books:book_list' %}" class="btn btn-primary mt-2">
+                    <i class="fas fa-search me-1"></i> Browse Books
+                </a>
+            </div>
+        {% endif %}
+
+        <!-- Pagination -->
         {% if is_paginated %}
-            <nav class="mt-4" aria-label="Pagination">
+            <nav class="mt-4">
                 <ul class="pagination justify-content-center">
                     {% if page_obj.has_previous %}
                         <li class="page-item">
-                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}">Previous</a>
-                        </li>
-                    {% else %}
-                        <li class="page-item disabled">
-                            <span class="page-link">Previous</span>
+                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}">
+                                <i class="fas fa-chevron-left"></i>
+                            </a>
                         </li>
                     {% endif %}
-
                     {% for num in page_obj.paginator.page_range %}
-                        {% if page_obj.number == num %}
-                            <li class="page-item active" aria-current="page">
-                                <span class="page-link">{{ num }}</span>
-                            </li>
-                        {% else %}
-                            <li class="page-item">
+                        {% if num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                            <li class="page-item {% if num == page_obj.number %}active{% endif %}">
                                 <a class="page-link" href="?page={{ num }}">{{ num }}</a>
                             </li>
                         {% endif %}
                     {% endfor %}
-
                     {% if page_obj.has_next %}
                         <li class="page-item">
-                            <a class="page-link" href="?page={{ page_obj.next_page_number }}">Next</a>
-                        </li>
-                    {% else %}
-                        <li class="page-item disabled">
-                            <span class="page-link">Next</span>
+                            <a class="page-link" href="?page={{ page_obj.next_page_number }}">
+                                <i class="fas fa-chevron-right"></i>
+                            </a>
                         </li>
                     {% endif %}
                 </ul>

@@ -1,0 +1,116 @@
+{% extends "dashboard/admin_base.html" %}
+{% load static %}
+
+{% block title %}
+    {% if is_add %}Add User{% else %}Edit User{% endif %} | Admin Panel
+{% endblock %}
+
+{% block page_title %}
+    {% if is_add %}Add New User{% else %}Edit User{% endif %}
+{% endblock %}
+
+{% block page_subtitle %}
+    {% if is_add %}Create a new library user account{% else %}Update user information{% endif %}
+{% endblock %}
+
+{% block admin_content %}
+<div class="container-fluid px-0">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header bg-transparent">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="fw-bold mb-0">
+                            <i class="fas fa-{% if is_add %}user-plus{% else %}edit{% endif %} me-2" style="color: var(--primary);"></i>
+                            {% if is_add %}Add New User{% else %}Edit User{% endif %}
+                        </h5>
+                        <a href="{% url 'dashboard:admin_users' %}" class="btn btn-sm btn-outline-secondary">
+                            <i class="fas fa-arrow-left me-1"></i> Back to Users
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert alert-{{ message.tags|default:'info' }} alert-dismissible fade show">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+
+                    {% if is_add %}
+                        <form method="post" action="{% url 'dashboard:admin_user_create' %}">
+                    {% else %}
+                        <form method="post" action="{% url 'dashboard:admin_user_update' user.id %}">
+                    {% endif %}
+                        {% csrf_token %}
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Username <span class="text-danger">*</span></label>
+                                <input type="text" name="username" class="form-control" 
+                                       value="{{ user.username|default:'' }}" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Email <span class="text-danger">*</span></label>
+                                <input type="email" name="email" class="form-control" 
+                                       value="{{ user.email|default:'' }}" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">First Name</label>
+                                <input type="text" name="first_name" class="form-control" 
+                                       value="{{ user.first_name|default:'' }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Last Name</label>
+                                <input type="text" name="last_name" class="form-control" 
+                                       value="{{ user.last_name|default:'' }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Role</label>
+                                <select name="role" class="form-select">
+                                    <option value="MEMBER" {% if user.role == 'MEMBER' or not user %}selected{% endif %}>Member</option>
+                                    <option value="ADMIN" {% if user.role == 'ADMIN' %}selected{% endif %}>Admin</option>
+                                </select>
+                            </div>
+                            {% if not is_add %}
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Status</label>
+                                <select name="is_active" class="form-select">
+                                    <option value="true" {% if user.is_active %}selected{% endif %}>Active</option>
+                                    <option value="false" {% if not user.is_active %}selected{% endif %}>Inactive</option>
+                                </select>
+                            </div>
+                            {% endif %}
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">
+                                    Password {% if is_add %}<span class="text-danger">*</span>{% endif %}
+                                </label>
+                                <input type="password" name="password" class="form-control" 
+                                       {% if is_add %}required{% else %}placeholder="Leave blank to keep current"{% endif %}>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">
+                                    Confirm Password {% if is_add %}<span class="text-danger">*</span>{% endif %}
+                                </label>
+                                <input type="password" name="password2" class="form-control" 
+                                       {% if is_add %}required{% else %}placeholder="Leave blank to keep current"{% endif %}>
+                            </div>
+                        </div>
+                        
+                        <div class="d-flex gap-2 mt-4 pt-3 border-top">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-1"></i> 
+                                {% if is_add %}Create User{% else %}Save Changes{% endif %}
+                            </button>
+                            <a href="{% url 'dashboard:admin_users' %}" class="btn btn-outline-secondary">
+                                <i class="fas fa-times me-1"></i> Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,39 +1,325 @@
 {% extends "base.html" %}
+{% load static %}
+
+{% block title %}Confirm Borrow | {{ book.title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .confirm-container {
+        max-width: 600px;
+        margin: 0 auto;
+    }
+    
+    .confirm-card {
+        background: white;
+        border-radius: 32px;
+        overflow: hidden;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+    }
+    
+    .confirm-header {
+        background: linear-gradient(135deg, #10b981, #059669);
+        padding: 2rem;
+        text-align: center;
+        color: white;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .confirm-header::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -20%;
+        width: 80%;
+        height: 200%;
+        background: rgba(255, 255, 255, 0.08);
+        transform: rotate(25deg);
+        pointer-events: none;
+    }
+    
+    .confirm-icon {
+        width: 80px;
+        height: 80px;
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 1rem;
+        backdrop-filter: blur(10px);
+    }
+    
+    .confirm-icon i {
+        font-size: 2.5rem;
+    }
+    
+    .confirm-header h2 {
+        font-size: 1.5rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+    }
+    
+    .confirm-header p {
+        opacity: 0.9;
+        font-size: 0.9rem;
+        margin: 0;
+    }
+    
+    .book-detail-card {
+        padding: 1.5rem;
+        background: #f8fafc;
+        border-radius: 20px;
+        margin: 1.5rem;
+        display: flex;
+        gap: 1rem;
+        align-items: center;
+    }
+    
+    .book-cover-confirm {
+        width: 80px;
+        height: 100px;
+        background: linear-gradient(135deg, #e2e8f0, #cbd5e1);
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        flex-shrink: 0;
+    }
+    
+    .book-cover-confirm img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+    
+    .book-cover-confirm i {
+        font-size: 2rem;
+        color: #94a3b8;
+    }
+    
+    .book-info-confirm h3 {
+        font-size: 1.2rem;
+        font-weight: 700;
+        margin-bottom: 0.25rem;
+    }
+    
+    .book-info-confirm .author {
+        color: #64748b;
+        font-size: 0.85rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    .book-info-confirm .genre {
+        display: inline-block;
+        background: #e2e8f0;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 0.7rem;
+        color: #475569;
+    }
+    
+    .info-row {
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid #e2e8f0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+    
+    .info-row:last-of-type {
+        border-bottom: none;
+    }
+    
+    .info-label {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: #64748b;
+        font-size: 0.85rem;
+    }
+    
+    .info-label i {
+        color: #10b981;
+        width: 20px;
+    }
+    
+    .info-value {
+        font-weight: 600;
+        color: #0f172a;
+    }
+    
+    .info-value.highlight {
+        color: #10b981;
+        font-size: 1.1rem;
+    }
+    
+    .warning-box {
+        background: #fef3c7;
+        margin: 1rem 1.5rem;
+        padding: 1rem;
+        border-radius: 16px;
+        display: flex;
+        gap: 12px;
+        align-items: flex-start;
+    }
+    
+    .warning-box i {
+        color: #d97706;
+        font-size: 1.2rem;
+        margin-top: 2px;
+    }
+    
+    .warning-box .warning-text {
+        font-size: 0.8rem;
+        color: #92400e;
+        line-height: 1.4;
+    }
+    
+    .warning-box .warning-text strong {
+        display: block;
+        margin-bottom: 4px;
+    }
+    
+    .action-buttons {
+        padding: 1.5rem;
+        display: flex;
+        gap: 1rem;
+        background: #f8fafc;
+    }
+    
+    .btn-confirm {
+        flex: 1;
+        background: linear-gradient(135deg, #10b981, #059669);
+        border: none;
+        border-radius: 40px;
+        padding: 0.9rem;
+        font-weight: 600;
+        font-size: 1rem;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-confirm:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(16, 185, 129, 0.3);
+    }
+    
+    .btn-cancel-confirm {
+        flex: 1;
+        background: white;
+        border: 2px solid #e2e8f0;
+        border-radius: 40px;
+        padding: 0.9rem;
+        font-weight: 500;
+        color: #64748b;
+        text-align: center;
+        text-decoration: none;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-cancel-confirm:hover {
+        border-color: #ef4444;
+        color: #ef4444;
+        background: #fef2f2;
+    }
+    
+    @media (max-width: 576px) {
+        .book-detail-card {
+            flex-direction: column;
+            text-align: center;
+        }
+        
+        .info-row {
+            flex-direction: column;
+            text-align: center;
+        }
+        
+        .action-buttons {
+            flex-direction: column;
+        }
+    }
+</style>
+{% endblock %}
 
 {% block content %}
-<section class="py-5 bg-light min-vh-100">
+<section class="py-5 bg-light min-vh-100 d-flex align-items-center">
     <div class="container">
-        <div class="row justify-content-center">
-            <div class="col-12 col-md-8 col-lg-6">
-                <div class="card border-0 shadow-sm">
-                    <div class="card-body p-4 p-md-5">
-                        <h1 class="h3 mb-3">Confirm Reservation</h1>
-                        
-                        <div class="mb-4">
-                            <p class="text-muted mb-1">You are reserving:</p>
-                            <h2 class="h5 fw-bold text-dark mb-1">{{ book.title }}</h2>
-                            <p class="text-muted">by {{ book.author }}</p>
-                        </div>
-
-                        <div class="alert alert-warning border-0 bg-warning-subtle mb-4">
-                            <div class="d-flex align-items-center">
-                                <div>
-                                    <div class="fw-semibold text-warning-emphasis">Lending Notice</div>
-                                    <div class="small text-warning-emphasis">
-                                        This book is currently out of stock. By placing a reservation, you will be placed on the waitlist and notified immediately as soon as a copy is returned.
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <form method="post">
-                            {% csrf_token %}
-                            <div class="d-flex flex-column flex-sm-row gap-2">
-                                <button type="submit" class="btn btn-warning text-dark fw-semibold">Confirm Reservation</button>
-                                <a href="{% url 'books:book_detail' book.pk %}" class="btn btn-outline-secondary">Cancel</a>
-                            </div>
-                        </form>
+        <div class="confirm-container">
+            <div class="confirm-card">
+                <!-- Header -->
+                <div class="confirm-header">
+                    <div class="confirm-icon">
+                        <i class="fas fa-hand-holding-heart"></i>
                     </div>
+                    <h2>Confirm Borrow</h2>
+                    <p>Please review the details before borrowing</p>
+                </div>
+                
+                <!-- Book Details -->
+                <div class="book-detail-card">
+                    <div class="book-cover-confirm">
+                        {% if book.cover_image %}
+                            <img src="{{ book.cover_image.url }}" alt="{{ book.title }}">
+                        {% else %}
+                            <i class="fas fa-book"></i>
+                        {% endif %}
+                    </div>
+                    <div class="book-info-confirm">
+                        <h3>{{ book.title }}</h3>
+                        <div class="author">by {{ book.author }}</div>
+                        <span class="genre"><i class="fas fa-tag me-1"></i> {{ book.genre }}</span>
+                    </div>
+                </div>
+                
+                <!-- Borrow Details -->
+                <div class="info-row">
+                    <div class="info-label">
+                        <i class="fas fa-calendar-check"></i>
+                        Borrow Date
+                    </div>
+                    <div class="info-value">{{ due_date|date:"F j, Y" }}</div>
+                </div>
+                
+                <div class="info-row">
+                    <div class="info-label">
+                        <i class="fas fa-calendar-alt"></i>
+                        Due Date
+                    </div>
+                    <div class="info-value highlight">{{ due_date|date:"F j, Y" }}</div>
+                </div>
+                
+                <div class="info-row">
+                    <div class="info-label">
+                        <i class="fas fa-hourglass-half"></i>
+                        Borrowing Period
+                    </div>
+                    <div class="info-value">14 Days</div>
+                </div>
+                
+                <!-- Warning Box -->
+                <div class="warning-box">
+                    <i class="fas fa-info-circle"></i>
+                    <div class="warning-text">
+                        <strong>📖 Lending Policy</strong>
+                        Please return the book by the due date to avoid late fees. 
+                        Late returns incur a fine of $1.00 per day.
+                    </div>
+                </div>
+                
+                <!-- Action Buttons -->
+                <div class="action-buttons">
+                    <form method="post" style="flex: 1;">
+                        {% csrf_token %}
+                        <button type="submit" class="btn-confirm">
+                            <i class="fas fa-check-circle me-2"></i> Confirm Borrow
+                        </button>
+                    </form>
+                    <a href="{% url 'books:book_detail' book.pk %}" class="btn-cancel-confirm">
+                        <i class="fas fa-times me-2"></i> Cancel
+                    </a>
                 </div>
             </div>
         </div>

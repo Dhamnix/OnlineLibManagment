@@ -10,6 +10,7 @@ from .models import Book
 
 
 class BookListView(ListView):
+    """View for regular users - shows public book list"""
     model = Book
     template_name = "books/book_list.html"
     context_object_name = "books"
@@ -25,7 +26,6 @@ class BookListView(ListView):
         if search:
             queryset = queryset.filter(title__icontains=search)
         if author:
-            # Use case-insensitive containment to avoid exact-match NUX
             queryset = queryset.filter(author__icontains=author)
         if genre:
             queryset = queryset.filter(genre=genre)
@@ -47,7 +47,6 @@ class BookListView(ListView):
         context["selected_genre"] = genre
         context["selected_year"] = year
 
-        # Fetch options for dropdown filters
         context["authors"] = (
             Book.objects.exclude(author="")
             .order_by("author")
@@ -66,7 +65,64 @@ class BookListView(ListView):
             .distinct()
         )
 
-        # Build querystring parameters for pagination links, keeping current filters intact
+        params = self.request.GET.copy()
+        if "page" in params:
+            del params["page"]
+        context["query_params"] = params.urlencode()
+
+        return context
+
+
+class AdminBookListView(LoginRequiredMixin, ListView):
+    """Admin view for managing books - shows full table with edit/delete"""
+    model = Book
+    template_name = "books/admin_book_list.html"
+    context_object_name = "books"
+    paginate_by = 15
+
+    def dispatch(self, request, *args, **kwargs):
+        # Only admin can access
+        if not request.user.is_authenticated:
+            return redirect('accounts:login')
+        if not (request.user.is_superuser or getattr(request.user, 'role', None) == 'ADMIN'):
+            return redirect('books:book_list')
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_queryset(self):
+        queryset = Book.objects.all()
+        search = self.request.GET.get("search", "").strip()
+        author = self.request.GET.get("author", "").strip()
+        genre = self.request.GET.get("genre", "").strip()
+
+        if search:
+            queryset = queryset.filter(title__icontains=search)
+        if author:
+            queryset = queryset.filter(author__icontains=author)
+        if genre:
+            queryset = queryset.filter(genre=genre)
+
+        return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        
+        context["search"] = self.request.GET.get("search", "").strip()
+        context["selected_author"] = self.request.GET.get("author", "").strip()
+        context["selected_genre"] = self.request.GET.get("genre", "").strip()
+
+        context["authors"] = (
+            Book.objects.exclude(author="")
+            .order_by("author")
+            .values_list("author", flat=True)
+            .distinct()
+        )
+        context["genres"] = (
+            Book.objects.exclude(genre="")
+            .order_by("genre")
+            .values_list("genre", flat=True)
+            .distinct()
+        )
+
         params = self.request.GET.copy()
         if "page" in params:
             del params["page"]
@@ -87,18 +143,13 @@ class BookDetailView(DetailView):
         context = super().get_context_data(**kwargs)
         book = self.get_object()
         
-        # Import here to avoid circular imports
         from reviews.models import Review
         from reviews.views import get_book_average_rating
         
-        # Get all reviews for the book and prefetch related user to avoid N+1 in templates
         reviews = Review.objects.filter(book=book).select_related("user")
         context["reviews"] = reviews
-        
-        # Calculate average rating
         context["average_rating"] = get_book_average_rating(book.id)
         
-        # Check if current user has a review
         if self.request.user.is_authenticated:
             context["user_review"] = reviews.filter(user=self.request.user).first()
         
@@ -170,6 +221,23 @@ class BookDeleteView(LoginRequiredMixin, PermissionRequiredMixin, DeleteView):
             super().has_permission()
         )
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        book = self.get_object()
+        
+        # Calculate average rating
+        from reviews.models import Review
+        from django.db.models import Avg
+        
+        avg_rating = Review.objects.filter(book=book).aggregate(avg=Avg('rating'))['avg']
+        if avg_rating:
+            context['average_rating'] = round(avg_rating, 1)
+        else:
+            context['average_rating'] = None
+            
+        return context
+
     def form_valid(self, form):
         messages.success(self.request, "Book deleted successfully.")
         return super().form_valid(form)
+    

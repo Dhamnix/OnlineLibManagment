@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block title %}
   {% if is_update %}
@@ -8,157 +9,473 @@
   {% endif %}
 {% endblock %}
 
-{% block content %}
-<div class="container my-5">
-  <div class="row justify-content-center">
-    <div class="col-md-8">
-      <div class="card shadow-sm">
-        <div class="card-body">
-          <h2 class="card-title mb-4">
-            {% if is_update %}
-              Edit Your Review
-            {% else %}
-              Add Your Review
-            {% endif %}
-          </h2>
-
-          <!-- Book Info -->
-          <div class="mb-4 p-3 bg-light rounded">
-            <div class="row align-items-center">
-              {% if book.cover_image %}
-                <div class="col-md-3">
-                  <img 
-                    src="{{ book.cover_image.url }}" 
-                    alt="{{ book.title }}" 
-                    class="img-fluid rounded"
-                  >
-                </div>
-                <div class="col-md-9">
-              {% else %}
-                <div class="col-md-12">
-              {% endif %}
-                  <h5>{{ book.title }}</h5>
-                  <p class="mb-0 text-muted">{{ book.author }}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Review Form -->
-          <form method="post" class="needs-validation">
-            {% csrf_token %}
-
-            <!-- Rating Field -->
-            <div class="mb-4">
-              <label class="form-label fw-bold">Rating *</label>
-              <div class="rating-options">
-                {% for value, label in form.rating.field.choices %}
-                  <div class="form-check">
-                    <input 
-                      class="form-check-input" 
-                      type="radio" 
-                      id="rating_{{ value }}" 
-                      name="rating" 
-                      value="{{ value }}"
-                      {% if form.rating.value == value|stringformat:'s' %}checked{% endif %}
-                      required
-                    >
-                    <label class="form-check-label" for="rating_{{ value }}">
-                      <span class="text-warning">
-                        {% for star in "12345" %}
-                          {% if forloop.counter <= value|add:0 %}
-                            ★
-                          {% else %}
-                            ☆
-                          {% endif %}
-                        {% endfor %}
-                      </span>
-                      {{ label }}
-                    </label>
-                  </div>
-                {% endfor %}
-              </div>
-              {% if form.rating.errors %}
-                <div class="invalid-feedback d-block">
-                  {{ form.rating.errors.0 }}
-                </div>
-              {% endif %}
-            </div>
-
-            <!-- Comment Field -->
-            <div class="mb-4">
-              <label for="{{ form.comment.id_for_label }}" class="form-label">
-                {{ form.comment.label }}
-              </label>
-              {% if form.comment.errors %}
-                <div class="text-danger small mb-2">
-                  {{ form.comment.errors.0 }}
-                </div>
-              {% endif %}
-              {{ form.comment }}
-            </div>
-
-            <!-- Buttons -->
-            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-              <a 
-                href="{% url 'books:book_detail' book.pk %}" 
-                class="btn btn-outline-secondary"
-              >
-                Cancel
-              </a>
-              <button type="submit" class="btn btn-primary">
-                {% if is_update %}
-                  Update Review
-                {% else %}
-                  Submit Review
-                {% endif %}
-              </button>
-            </div>
-          </form>
-
-          <!-- Delete Button (for edit) -->
-          {% if is_update %}
-            <hr class="my-4">
-            <form 
-              method="post" 
-              action="{% url 'reviews:review_delete' book.pk %}" 
-              style="display: inline;"
-              onsubmit="return confirm('Are you sure you want to delete this review?');"
-            >
-              {% csrf_token %}
-              <button type="submit" class="btn btn-outline-danger w-100">
-                Delete Review
-              </button>
-            </form>
-          {% endif %}
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
+{% block extra_css %}
 <style>
-  .rating-options {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-  }
-  
-  .rating-options .form-check-label {
-    cursor: pointer;
-    font-size: 1.1rem;
-  }
-  
-  .rating-options .form-check-input {
-    cursor: pointer;
-    width: 1.25em;
-    height: 1.25em;
-  }
-  
-  .text-warning {
-    color: #ffc107;
-    font-size: 1.5rem;
-    letter-spacing: 2px;
-  }
+    /* Review Form Modern Styles */
+    .review-header-card {
+        background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+        border-radius: 32px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        color: white;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .review-header-card::before {
+        content: '';
+        position: absolute;
+        top: -30%;
+        right: -10%;
+        width: 60%;
+        height: 150%;
+        background: rgba(255, 255, 255, 0.05);
+        transform: rotate(25deg);
+        pointer-events: none;
+    }
+    
+    .book-info-mini {
+        display: flex;
+        gap: 1.5rem;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+    
+    .book-cover-mini-review {
+        width: 80px;
+        height: 100px;
+        background: rgba(255,255,255,0.15);
+        border-radius: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        backdrop-filter: blur(10px);
+    }
+    
+    .book-cover-mini-review img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+    
+    .book-cover-mini-review i {
+        font-size: 2.5rem;
+        color: rgba(255,255,255,0.7);
+    }
+    
+    .book-title-mini {
+        font-size: 1.5rem;
+        font-weight: 700;
+        margin-bottom: 0.25rem;
+    }
+    
+    /* Rating Stars */
+    .rating-container {
+        background: white;
+        border-radius: 24px;
+        padding: 2rem;
+        text-align: center;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    }
+    
+    .rating-label {
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: var(--gray);
+        margin-bottom: 1rem;
+    }
+    
+    .star-rating {
+        display: flex;
+        justify-content: center;
+        gap: 0.75rem;
+        direction: rtl;
+        flex-direction: row-reverse;
+    }
+    
+    .star-rating input {
+        display: none;
+    }
+    
+    .star-rating label {
+        font-size: 2.5rem;
+        color: #cbd5e1;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+    
+    .star-rating label:hover,
+    .star-rating label:hover ~ label,
+    .star-rating input:checked ~ label {
+        color: #fbbf24;
+        transform: scale(1.1);
+    }
+    
+    .star-rating label:active {
+        transform: scale(0.95);
+    }
+    
+    .rating-value-display {
+        margin-top: 1rem;
+        font-size: 0.9rem;
+        color: var(--gray);
+    }
+    
+    .rating-value-display span {
+        font-weight: 700;
+        color: #fbbf24;
+        font-size: 1.2rem;
+    }
+    
+    /* Review Card Form */
+    .review-form-card {
+        background: white;
+        border-radius: 24px;
+        padding: 2rem;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    }
+    
+    .form-group-custom {
+        margin-bottom: 1.5rem;
+    }
+    
+    .form-label-custom {
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--dark);
+    }
+    
+    .form-label-custom i {
+        color: var(--primary);
+    }
+    
+    .form-control-custom {
+        border: 2px solid var(--gray-light);
+        border-radius: 16px;
+        padding: 0.85rem 1.25rem;
+        font-size: 0.95rem;
+        transition: all 0.2s ease;
+        width: 100%;
+    }
+    
+    .form-control-custom:focus {
+        border-color: var(--primary);
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(99,102,241,0.1);
+    }
+    
+    textarea.form-control-custom {
+        resize: vertical;
+        min-height: 120px;
+    }
+    
+    .action-buttons {
+        display: flex;
+        gap: 1rem;
+        justify-content: flex-end;
+        margin-top: 1.5rem;
+        padding-top: 1.5rem;
+        border-top: 1px solid var(--gray-light);
+    }
+    
+    .btn-submit {
+        background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+        border: none;
+        border-radius: 40px;
+        padding: 0.75rem 2rem;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-submit:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(99,102,241,0.3);
+    }
+    
+    .btn-cancel {
+        border-radius: 40px;
+        padding: 0.75rem 2rem;
+        font-weight: 500;
+        border: 2px solid var(--gray-light);
+        background: white;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-cancel:hover {
+        border-color: var(--gray);
+        background: #f8fafc;
+    }
+    
+    .btn-delete {
+        background: linear-gradient(135deg, #ef4444, #dc2626);
+        border: none;
+        border-radius: 40px;
+        padding: 0.75rem 2rem;
+        font-weight: 600;
+        color: white;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-delete:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(239,68,68,0.3);
+    }
+    
+    .character-counter {
+        font-size: 0.7rem;
+        color: var(--gray);
+        text-align: right;
+        margin-top: 0.5rem;
+    }
+    
+    .character-counter.warning {
+        color: #f59e0b;
+    }
+    
+    .character-counter.danger {
+        color: #ef4444;
+    }
+    
+    @media (max-width: 768px) {
+        .review-header-card {
+            padding: 1.5rem;
+            text-align: center;
+        }
+        
+        .book-info-mini {
+            justify-content: center;
+        }
+        
+        .review-form-card {
+            padding: 1.5rem;
+        }
+        
+        .star-rating label {
+            font-size: 1.8rem;
+        }
+        
+        .action-buttons {
+            flex-direction: column;
+        }
+        
+        .action-buttons .btn {
+            width: 100%;
+        }
+    }
 </style>
+{% endblock %}
+
+{% block content %}
+<section class="py-4 py-md-5 bg-light min-vh-100">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                
+                <!-- Header with Book Info -->
+                <div class="review-header-card">
+                    <div class="book-info-mini">
+                        <div class="book-cover-mini-review">
+                            {% if book.cover_image %}
+                                <img src="{{ book.cover_image.url }}" alt="{{ book.title }}">
+                            {% else %}
+                                <i class="fas fa-book"></i>
+                            {% endif %}
+                        </div>
+                        <div>
+                            <div class="book-title-mini">{{ book.title }}</div>
+                            <div class="opacity-75">by {{ book.author }}</div>
+                            <div class="mt-2">
+                                <span class="badge bg-white text-primary">{{ book.genre }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Rating Section -->
+                <div class="rating-container">
+                    <div class="rating-label">
+                        <i class="fas fa-star me-1"></i> YOUR RATING
+                    </div>
+                    <div class="star-rating" id="starRating">
+                        <input type="radio" id="star5" name="rating" value="5" {% if form.rating.value|stringformat:"s" == "5" %}checked{% endif %}>
+                        <label for="star5" title="Excellent">★</label>
+                        
+                        <input type="radio" id="star4" name="rating" value="4" {% if form.rating.value|stringformat:"s" == "4" %}checked{% endif %}>
+                        <label for="star4" title="Very Good">★</label>
+                        
+                        <input type="radio" id="star3" name="rating" value="3" {% if form.rating.value|stringformat:"s" == "3" %}checked{% endif %}>
+                        <label for="star3" title="Good">★</label>
+                        
+                        <input type="radio" id="star2" name="rating" value="2" {% if form.rating.value|stringformat:"s" == "2" %}checked{% endif %}>
+                        <label for="star2" title="Fair">★</label>
+                        
+                        <input type="radio" id="star1" name="rating" value="1" {% if form.rating.value|stringformat:"s" == "1" %}checked{% endif %}>
+                        <label for="star1" title="Poor">★</label>
+                    </div>
+                    <div class="rating-value-display" id="ratingValueDisplay">
+                        {% if form.rating.value %}
+                            You selected <span id="selectedRating">{{ form.rating.value }}</span> out of 5
+                        {% else %}
+                            Click on a star to rate
+                        {% endif %}
+                    </div>
+                    {% if form.rating.errors %}
+                        <div class="text-danger small mt-2">{{ form.rating.errors.0 }}</div>
+                    {% endif %}
+                </div>
+
+                <!-- Review Form -->
+                <div class="review-form-card">
+                    <form method="post" id="reviewForm">
+                        {% csrf_token %}
+                        
+                        <!-- Hidden rating input for form -->
+                        <input type="hidden" name="rating" id="hiddenRating" value="{{ form.rating.value|default:'' }}">
+                        
+                        <!-- Comment Field -->
+                        <div class="form-group-custom">
+                            <label for="{{ form.comment.id_for_label }}" class="form-label-custom">
+                                <i class="fas fa-pen-fancy"></i> Your Review
+                            </label>
+                            <textarea name="comment" 
+                                      id="reviewComment" 
+                                      class="form-control-custom" 
+                                      rows="5" 
+                                      placeholder="Share your thoughts about this book... What did you like or dislike?">{{ form.comment.value|default:'' }}</textarea>
+                            <div class="character-counter" id="charCounter">
+                                <span id="charCount">0</span> characters
+                            </div>
+                            {% if form.comment.errors %}
+                                <div class="text-danger small mt-1">{{ form.comment.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Tips for writing a good review -->
+                        <div class="alert alert-light border rounded-3 small mt-3">
+                            <i class="fas fa-lightbulb text-warning me-2"></i>
+                            <strong>Writing tip:</strong> Share what you loved, who would enjoy this book, and why.
+                        </div>
+                        
+                        <!-- Action Buttons -->
+                        <div class="action-buttons">
+                            <a href="{% url 'books:book_detail' book.pk %}" class="btn-cancel">
+                                <i class="fas fa-times me-2"></i> Cancel
+                            </a>
+                            {% if is_update %}
+                                <button type="submit" class="btn-submit">
+                                    <i class="fas fa-save me-2"></i> Update Review
+                                </button>
+                            {% else %}
+                                <button type="submit" class="btn-submit">
+                                    <i class="fas fa-paper-plane me-2"></i> Submit Review
+                                </button>
+                            {% endif %}
+                        </div>
+                    </form>
+                    
+                    <!-- Delete Button (for edit mode) -->
+                    {% if is_update %}
+                        <form method="post" 
+                              action="{% url 'reviews:review_delete' book.pk %}" 
+                              class="mt-3"
+                              onsubmit="return confirm('Are you sure you want to delete this review? This action cannot be undone.');">
+                            {% csrf_token %}
+                            <button type="submit" class="btn-delete w-100">
+                                <i class="fas fa-trash-alt me-2"></i> Delete Review
+                            </button>
+                        </form>
+                    {% endif %}
+                </div>
+                
+                <!-- What other readers are saying (optional) -->
+                <div class="mt-4 text-center">
+                    <small class="text-muted">
+                        <i class="fas fa-users me-1"></i> Your review helps other readers discover great books
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<script>
+    // Star Rating Interactive Logic
+    const starInputs = document.querySelectorAll('.star-rating input');
+    const ratingDisplay = document.getElementById('selectedRating');
+    const ratingValueDisplay = document.getElementById('ratingValueDisplay');
+    const hiddenRating = document.getElementById('hiddenRating');
+    
+    function updateRatingDisplay(value) {
+        if (ratingDisplay) {
+            ratingDisplay.textContent = value;
+        }
+        if (ratingValueDisplay) {
+            ratingValueDisplay.innerHTML = `You selected <span id="selectedRating">${value}</span> out of 5`;
+        }
+        if (hiddenRating) {
+            hiddenRating.value = value;
+        }
+    }
+    
+    // Set initial display
+    const checkedStar = document.querySelector('.star-rating input:checked');
+    if (checkedStar) {
+        updateRatingDisplay(checkedStar.value);
+    } else if (ratingValueDisplay && !checkedStar) {
+        ratingValueDisplay.innerHTML = `Click on a star to rate`;
+    }
+    
+    // Add event listeners to stars
+    starInputs.forEach(input => {
+        input.addEventListener('change', function() {
+            updateRatingDisplay(this.value);
+        });
+    });
+    
+    // Character counter for comment
+    const commentTextarea = document.getElementById('reviewComment');
+    const charCountSpan = document.getElementById('charCount');
+    const charCounterDiv = document.querySelector('.character-counter');
+    
+    function updateCharCount() {
+        if (commentTextarea && charCountSpan) {
+            const length = commentTextarea.value.length;
+            charCountSpan.textContent = length;
+            
+            if (charCounterDiv) {
+                charCounterDiv.classList.remove('warning', 'danger');
+                if (length > 500) {
+                    charCounterDiv.classList.add('warning');
+                }
+                if (length > 1000) {
+                    charCounterDiv.classList.add('danger');
+                }
+            }
+        }
+    }
+    
+    if (commentTextarea) {
+        updateCharCount();
+        commentTextarea.addEventListener('input', updateCharCount);
+    }
+    
+    // Form validation
+    const reviewForm = document.getElementById('reviewForm');
+    if (reviewForm) {
+        reviewForm.addEventListener('submit', function(e) {
+            const rating = hiddenRating.value;
+            if (!rating || rating === '') {
+                e.preventDefault();
+                alert('Please select a rating (1-5 stars) before submitting.');
+                return false;
+            }
+        });
+    }
+</script>
 {% endblock %}
