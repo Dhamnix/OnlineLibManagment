@@ -21,14 +21,6 @@ class CustomUserRegistrationForm(BootstrapFormMixin, UserCreationForm):
     email = forms.EmailField(required=True)
     first_name = forms.CharField(required=True, max_length=150)
     last_name = forms.CharField(required=True, max_length=150)
-    role = forms.ChoiceField(
-        choices=[
-            ("MEMBER", "Member"),
-            ("ADMIN", "Librarian"),
-        ],
-        required=True,
-        label="Role",
-    )
 
     class Meta:
         model = User
@@ -37,7 +29,6 @@ class CustomUserRegistrationForm(BootstrapFormMixin, UserCreationForm):
             "email",
             "first_name",
             "last_name",
-            "role",
             "password1",
             "password2",
         )
