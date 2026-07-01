@@ -80,11 +80,11 @@
                         <div class="d-flex flex-wrap gap-3">
                             {% if user.is_authenticated %}
                                 {% if book.available_copies > 0 %}
-                                    <a href="{% url 'borrowing:borrow' book.pk %}" class="btn btn-primary btn-lg">
+                                    <a href="{% url 'borrowing:borrow_book' book.pk %}" class="btn btn-primary btn-lg">
                                         <i class="bi bi-bookmark-check me-2"></i>Borrow Book
                                     </a>
                                 {% else %}
-                                    <a href="{% url 'borrowing:reserve' book.pk %}" class="btn btn-secondary btn-lg">
+                                    <a href="{% url 'borrowing:reserve_book' book.pk %}" class="btn btn-secondary btn-lg">
                                         <i class="bi bi-calendar-check me-2"></i>Reserve Book
                                     </a>
                                 {% endif %}
