@@ -1,3 +1,4 @@
+# notif/views.py
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views.generic import ListView
 from django.views import View
@@ -48,6 +49,14 @@ class NotificationMarkReadView(LoginRequiredMixin, View):
         notification = get_object_or_404(Notification, pk=pk, user=request.user)
         notification.mark_as_read()
         
+        # اگر درخواست AJAX باشد، JSON برمی‌گرداند
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({
+                'success': True,
+                'message': 'Notification marked as read',
+                'unread_count': Notification.objects.filter(user=request.user, is_read=False).count()
+            })
+        
         if notification.link:
             return redirect(notification.link)
         
@@ -60,6 +69,15 @@ class NotificationMarkAllReadView(LoginRequiredMixin, View):
             is_read=True,
             read_at=timezone.now()
         )
+        
+        # اگر درخواست AJAX باشد، JSON برمی‌گرداند
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({
+                'success': True,
+                'message': f'{count} notification(s) marked as read',
+                'unread_count': 0
+            })
+        
         messages.success(request, f"{count} notification(s) marked as read.")
         return redirect('notif:list')
 
@@ -68,6 +86,15 @@ class NotificationDeleteView(LoginRequiredMixin, View):
     def post(self, request, pk):
         notification = get_object_or_404(Notification, pk=pk, user=request.user)
         notification.delete()
+        
+
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({
+                'success': True,
+                'message': 'Notification deleted successfully',
+                'unread_count': Notification.objects.filter(user=request.user, is_read=False).count()
+            })
+        
         messages.success(request, "Notification deleted successfully.")
         return redirect('notif:list')
 

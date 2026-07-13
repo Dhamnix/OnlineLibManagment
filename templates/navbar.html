@@ -41,6 +41,9 @@
             {% if user.is_authenticated %}
             <div class="user-dropdown" id="userDropdown">
                 <div class="user-btn" id="userBtn">
+                    <!-- ============================================= -->
+                    <!-- 🔔 Notification Icon with Counter -->
+                    <!-- ============================================= -->
                     <a href="{% url 'notif:list' %}" 
                        class="text-decoration-none me-2" 
                        style="color: inherit; position: relative;" 
@@ -68,9 +71,12 @@
                     <a href="{% url 'accounts:profile' %}" class="dropdown-item-custom">
                         <i class="fas fa-user"></i> My Profile
                     </a>
+                    <!-- ============================================= -->
+                    <!-- 🔔 Notifications option in dropdown menu -->
+                    <!-- ============================================= -->
                     <a href="{% url 'notif:list' %}" class="dropdown-item-custom" style="position: relative;">
                         <i class="fas fa-bell"></i> 
-                       Notifications
+                        Notifications
                         <span id="notifBadgeDropdown" 
                               class="badge bg-danger rounded-pill" 
                               style="display: none; font-size: 0.6rem; padding: 2px 8px; margin-left: auto;">
@@ -85,6 +91,12 @@
                         <i class="fas fa-coins"></i> Fines
                     </a>
                     <div class="dropdown-divider-custom"></div>
+                    {% if user.is_superuser or user.role == 'ADMIN' %}
+                    <a href="{% url 'dashboard:admin-dashboard' %}" class="dropdown-item-custom">
+                        <i class="fas fa-crown"></i> Admin Panel
+                    </a>
+                    <div class="dropdown-divider-custom"></div>
+                    {% endif %}
                     <form method="post" action="{% url 'accounts:logout' %}" style="margin: 0;">
                         {% csrf_token %}
                         <button type="submit" class="dropdown-item-custom" style="color: #ef4444;">
@@ -109,11 +121,54 @@
 
 <style>
     /* ============================================= */
-    /* انیمیشن چشمک‌زن برای زنگوله */
+    /* Pulse Animation for Notification Bell */
     /* ============================================= */
     @keyframes pulse {
         0%, 100% { transform: scale(1); }
         50% { transform: scale(1.1); }
+    }
+
+    /* ============================================= */
+    /* Mobile Menu Overlay Fix */
+    /* ============================================= */
+    @media (max-width: 992px) {
+        .nav-menu {
+            position: fixed;
+            top: 70px;
+            left: -100%;
+            width: 80%;
+            max-width: 320px;
+            height: calc(100vh - 70px);
+            background: rgba(255, 255, 255, 0.98);
+            backdrop-filter: blur(20px);
+            flex-direction: column;
+            align-items: stretch;
+            padding: 2rem 1.5rem;
+            transition: left 0.3s ease;
+            box-shadow: 10px 0 30px rgba(0, 0, 0, 0.1);
+            gap: 0.5rem;
+            overflow-y: auto;
+            z-index: 999;
+        }
+        
+        .nav-menu.open {
+            left: 0;
+        }
+        
+        .nav-link-custom {
+            padding: 1rem;
+            text-align: center;
+            border-radius: 12px;
+        }
+        
+        .nav-link-custom:hover {
+            background: rgba(99, 102, 241, 0.1);
+        }
+        
+        .nav-link-custom.active {
+            background: linear-gradient(135deg, #6366f1, #4f46e5);
+            color: white;
+        }
     }
 </style>
 
@@ -135,7 +190,7 @@
     })();
 
     // =============================================
-    // User dropdown
+    // User dropdown toggle
     // =============================================
     (function() {
         const userBtn = document.getElementById('userBtn');
@@ -154,7 +209,7 @@
     })();
 
     // =============================================
-    // Mobile menu
+    // Mobile menu toggle
     // =============================================
     (function() {
         const mobileBtn = document.getElementById('mobileMenuBtn');
@@ -173,6 +228,7 @@
                 }
             });
             
+            // Close mobile menu when clicking a link
             document.querySelectorAll('.nav-link-custom').forEach(link => {
                 link.addEventListener('click', () => {
                     navMenu.classList.remove('open');
@@ -192,14 +248,19 @@
         const currentPath = window.location.pathname;
         document.querySelectorAll('.nav-link-custom').forEach(link => {
             const href = link.getAttribute('href');
-            if (href && currentPath === href) {
-                link.classList.add('active');
-            } else if (href && href !== '/' && href !== '/en/' && currentPath.startsWith(href) && href !== '/') {
-                link.classList.add('active');
+            if (href) {
+                if (currentPath === href) {
+                    link.classList.add('active');
+                } else if (href !== '/' && href !== '/en/' && currentPath.startsWith(href) && href !== '/') {
+                    link.classList.add('active');
+                }
             }
         });
     })();
 
+    // =============================================
+    // 🔔 Real-time Notification Badge Update
+    // =============================================
     (function() {
         const badge = document.getElementById('notifBadge');
         const dropdownBadge = document.getElementById('notifBadgeDropdown');
@@ -207,32 +268,51 @@
         if (!badge) return;
         
         function updateBadges() {
-            fetch('{% url "notif:unread_count" %}')
-                .then(response => response.json())
-                .then(data => {
-                    const count = data.unread_count || 0;
-                    
+            fetch('/notif/unread-count/', {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                const count = data.unread_count || 0;
+                
+                // Update header bell icon
+                if (badge) {
                     if (count > 0) {
                         badge.textContent = count > 99 ? '99+' : count;
                         badge.style.display = 'inline-block';
                     } else {
                         badge.style.display = 'none';
                     }
-                    
-                    if (dropdownBadge) {
-                        if (count > 0) {
-                            dropdownBadge.textContent = count > 99 ? '99+' : count;
-                            dropdownBadge.style.display = 'inline-block';
-                        } else {
-                            dropdownBadge.style.display = 'none';
-                        }
+                }
+                
+                // Update dropdown badge
+                if (dropdownBadge) {
+                    if (count > 0) {
+                        dropdownBadge.textContent = count > 99 ? '99+' : count;
+                        dropdownBadge.style.display = 'inline-block';
+                    } else {
+                        dropdownBadge.style.display = 'none';
                     }
-                })
-                .catch(() => {
-                });
+                }
+            })
+            .catch(() => {
+                // Silently fail - don't show errors to user
+            });
         }
         
+        // Initial update
         updateBadges();
+        
+        // Update every 30 seconds
         setInterval(updateBadges, 30000);
+        
+        // Also update when page becomes visible again
+        document.addEventListener('visibilitychange', function() {
+            if (!document.hidden) {
+                updateBadges();
+            }
+        });
     })();
 </script>

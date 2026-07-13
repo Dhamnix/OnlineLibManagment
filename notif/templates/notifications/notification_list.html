@@ -32,18 +32,18 @@
     
     .stat-badge-notif i {
         font-size: 1.2rem;
-        color: var(--primary);
+        color: #6366f1;
     }
     
     .stat-badge-notif .count {
         font-weight: 700;
         font-size: 1.2rem;
-        color: var(--dark);
+        color: #0f172a;
     }
     
     .stat-badge-notif .label {
         font-size: 0.7rem;
-        color: var(--gray);
+        color: #64748b;
     }
     
     .filter-tabs-notif {
@@ -57,8 +57,8 @@
         padding: 6px 18px;
         border-radius: 40px;
         background: white;
-        border: 1px solid var(--gray-light);
-        color: var(--gray);
+        border: 1px solid #e2e8f0;
+        color: #64748b;
         text-decoration: none;
         font-size: 0.8rem;
         font-weight: 500;
@@ -67,8 +67,8 @@
     
     .filter-btn-notif:hover,
     .filter-btn-notif.active {
-        background: var(--primary);
-        border-color: var(--primary);
+        background: #6366f1;
+        border-color: #6366f1;
         color: white;
     }
     
@@ -78,12 +78,18 @@
         padding: 1.25rem;
         margin-bottom: 0.75rem;
         transition: all 0.3s ease;
-        border: 1px solid var(--gray-light);
+        border: 1px solid #e2e8f0;
         position: relative;
+        animation: fadeIn 0.3s ease;
+    }
+    
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(-10px); }
+        to { opacity: 1; transform: translateY(0); }
     }
     
     .notif-card.unread {
-        border-left: 4px solid var(--primary);
+        border-left: 4px solid #6366f1;
         background: #f8fafc;
     }
     
@@ -96,13 +102,14 @@
         font-weight: 600;
         font-size: 0.95rem;
         margin-bottom: 0.25rem;
-        color: var(--dark);
+        color: #0f172a;
     }
     
     .notif-card .notif-message {
         font-size: 0.85rem;
-        color: var(--gray);
+        color: #64748b;
         margin-bottom: 0.5rem;
+        white-space: pre-line;
     }
     
     .notif-card .notif-meta {
@@ -111,7 +118,7 @@
         gap: 1rem;
         flex-wrap: wrap;
         font-size: 0.7rem;
-        color: var(--gray);
+        color: #64748b;
     }
     
     .notif-card .notif-meta .type-badge {
@@ -132,6 +139,7 @@
         display: flex;
         gap: 0.5rem;
         margin-top: 0.5rem;
+        flex-wrap: wrap;
     }
     
     .notif-actions .btn-sm {
@@ -148,41 +156,61 @@
     }
     
     .mark-all-btn {
-        background: var(--primary);
+        background: #6366f1;
         border: none;
         border-radius: 40px;
         padding: 8px 24px;
         font-weight: 600;
         font-size: 0.85rem;
         transition: all 0.3s ease;
+        color: white;
     }
     
     .mark-all-btn:hover {
         transform: translateY(-2px);
         box-shadow: 0 8px 20px rgba(99,102,241,0.3);
+        color: white;
+    }
+    
+    .toast-notification {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 9999;
+        background: white;
+        padding: 16px 24px;
+        border-radius: 16px;
+        box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+        border-left: 4px solid #6366f1;
+        animation: slideIn 0.3s ease;
+        max-width: 350px;
+    }
+    
+    @keyframes slideIn {
+        from { transform: translateX(100%); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
+    }
+    
+    .toast-notification.success { border-left-color: #10b981; }
+    .toast-notification.error { border-left-color: #ef4444; }
+    .toast-notification.warning { border-left-color: #f59e0b; }
+    
+    .notif-card.removing {
+        animation: slideOut 0.3s ease forwards;
+    }
+    
+    @keyframes slideOut {
+        from { opacity: 1; transform: translateX(0); }
+        to { opacity: 0; transform: translateX(100%); }
     }
     
     @media (max-width: 768px) {
-        .notif-header {
-            padding: 1.5rem;
-            text-align: center;
-        }
-        
-        .notif-stats {
-            justify-content: center;
-        }
-        
-        .filter-tabs-notif {
-            justify-content: center;
-        }
-        
-        .notif-card {
-            text-align: center;
-        }
-        
-        .notif-actions {
-            justify-content: center;
-        }
+        .notif-header { padding: 1.5rem; text-align: center; }
+        .notif-stats { justify-content: center; }
+        .filter-tabs-notif { justify-content: center; }
+        .notif-card { text-align: center; }
+        .notif-actions { justify-content: center; }
+        .toast-notification { top: 10px; right: 10px; left: 10px; max-width: none; }
     }
 </style>
 {% endblock %}
@@ -205,31 +233,28 @@
                 </div>
                 <div class="mt-3 mt-md-0">
                     {% if unread_count > 0 %}
-                    <form method="post" action="{% url 'notif:mark_all_read' %}" class="d-inline">
-                        {% csrf_token %}
-                        <button type="submit" class="mark-all-btn btn btn-primary">
+                        <button type="button" class="mark-all-btn" id="markAllReadBtn">
                             <i class="fas fa-check-double me-1"></i>
                             Mark All as Read
                         </button>
-                    </form>
                     {% endif %}
                 </div>
             </div>
         </div>
 
         <!-- Stats -->
-        <div class="notif-stats">
+        <div class="notif-stats" id="statsContainer">
             <div class="stat-badge-notif">
                 <i class="fas fa-envelope"></i>
                 <div>
-                    <div class="count">{{ total_count|default:"0" }}</div>
+                    <div class="count" id="totalCount">{{ total_count|default:"0" }}</div>
                     <div class="label">Total</div>
                 </div>
             </div>
             <div class="stat-badge-notif">
                 <i class="fas fa-envelope-open"></i>
                 <div>
-                    <div class="count">{{ unread_count|default:"0" }}</div>
+                    <div class="count" id="unreadCount">{{ unread_count|default:"0" }}</div>
                     <div class="label">Unread</div>
                 </div>
             </div>
@@ -268,76 +293,74 @@
         </div>
 
         <!-- Notifications List -->
-        {% if notifications %}
-            {% for notification in notifications %}
-                <div class="notif-card {% if not notification.is_read %}unread{% endif %}">
-                    <div class="notif-title">
-                        {% if not notification.is_read %}
-                            <span class="badge bg-primary me-2">New</span>
-                        {% endif %}
-                        {{ notification.title }}
-                    </div>
-                    <div class="notif-message">{{ notification.message }}</div>
-                    <div class="notif-meta">
-                        <span class="type-badge {{ notification.type|lower }}">
-                            {{ notification.get_type_display }}
-                        </span>
-                        <span>
-                            <i class="far fa-clock me-1"></i>
-                            {{ notification.created_at|date:"M d, Y H:i" }}
-                        </span>
-                        {% if notification.is_read %}
-                            <span class="text-success">
-                                <i class="fas fa-check-circle me-1"></i> Read
+        <div id="notificationsContainer">
+            {% if notifications %}
+                {% for notification in notifications %}
+                    <div class="notif-card {% if not notification.is_read %}unread{% endif %}" 
+                         id="notif-{{ notification.id }}"
+                         data-id="{{ notification.id }}">
+                        <div class="notif-title">
+                            {% if not notification.is_read %}
+                                <span class="badge bg-primary me-2">New</span>
+                            {% endif %}
+                            {{ notification.title }}
+                        </div>
+                        <div class="notif-message">{{ notification.message|linebreaks }}</div>
+                        <div class="notif-meta">
+                            <span class="type-badge {{ notification.type|lower }}">
+                                {{ notification.get_type_display }}
                             </span>
-                        {% else %}
-                            <span class="text-primary">
-                                <i class="fas fa-circle me-1" style="font-size: 0.5rem;"></i> Unread
+                            <span>
+                                <i class="far fa-clock me-1"></i>
+                                {{ notification.created_at|date:"M d, Y H:i" }}
                             </span>
-                        {% endif %}
-                    </div>
-                    <div class="notif-actions">
-                        {% if not notification.is_read %}
-                            <form method="post" action="{% url 'notif:mark_read' notification.pk %}" class="d-inline">
-                                {% csrf_token %}
-                                <button type="submit" class="btn btn-sm btn-primary">
+                            {% if notification.is_read %}
+                                <span class="text-success">
+                                    <i class="fas fa-check-circle me-1"></i> Read
+                                </span>
+                            {% else %}
+                                <span class="text-primary" id="status-{{ notification.id }}">
+                                    <i class="fas fa-circle me-1" style="font-size: 0.5rem;"></i> Unread
+                                </span>
+                            {% endif %}
+                        </div>
+                        <div class="notif-actions">
+                            {% if not notification.is_read %}
+                                <button type="button" class="btn btn-sm btn-primary mark-read-btn" 
+                                        data-id="{{ notification.id }}">
                                     <i class="fas fa-check me-1"></i> Mark as Read
                                 </button>
-                            </form>
-                        {% endif %}
-                        {% if notification.link %}
-                            <a href="{{ notification.link }}" class="btn btn-sm btn-outline-primary">
-                                <i class="fas fa-external-link-alt me-1"></i> View
-                            </a>
-                        {% endif %}
-                        <form method="post" action="{% url 'notif:delete' notification.pk %}" 
-                              class="d-inline" 
-                              onsubmit="return confirm('Delete this notification?');">
-                            {% csrf_token %}
-                            <button type="submit" class="btn btn-sm btn-outline-danger">
+                            {% endif %}
+                            {% if notification.link %}
+                                <a href="{{ notification.link }}" class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-external-link-alt me-1"></i> View
+                                </a>
+                            {% endif %}
+                            <button type="button" class="btn btn-sm btn-outline-danger delete-btn" 
+                                    data-id="{{ notification.id }}">
                                 <i class="fas fa-trash me-1"></i> Delete
                             </button>
-                        </form>
+                        </div>
                     </div>
+                {% endfor %}
+            {% else %}
+                <div class="empty-state-notif">
+                    <i class="fas fa-bell-slash fa-4x text-muted mb-3"></i>
+                    <h5 class="text-muted">No Notifications</h5>
+                    <p class="text-muted small">
+                        {% if current_type or current_status %}
+                            No notifications match your filters.
+                            <br>
+                            <a href="{% url 'notif:list' %}" class="btn btn-sm btn-outline-primary mt-2">
+                                <i class="fas fa-times me-1"></i> Clear Filters
+                            </a>
+                        {% else %}
+                            You're all caught up! No notifications at the moment.
+                        {% endif %}
+                    </p>
                 </div>
-            {% endfor %}
-        {% else %}
-            <div class="empty-state-notif">
-                <i class="fas fa-bell-slash fa-4x text-muted mb-3"></i>
-                <h5 class="text-muted">No Notifications</h5>
-                <p class="text-muted small">
-                    {% if current_type or current_status %}
-                        No notifications match your filters.
-                        <br>
-                        <a href="{% url 'notif:list' %}" class="btn btn-sm btn-outline-primary mt-2">
-                            <i class="fas fa-times me-1"></i> Clear Filters
-                        </a>
-                    {% else %}
-                        You're all caught up! No notifications at the moment.
-                    {% endif %}
-                </p>
-            </div>
-        {% endif %}
+            {% endif %}
+        </div>
 
         <!-- Pagination -->
         {% if is_paginated %}
@@ -369,4 +392,211 @@
         {% endif %}
     </div>
 </section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // =============================================
+    // Toast Notification
+    // =============================================
+    function showToast(message, type = 'success') {
+        const existing = document.querySelector('.toast-notification');
+        if (existing) existing.remove();
+        
+        const toast = document.createElement('div');
+        toast.className = `toast-notification ${type}`;
+        toast.innerHTML = `
+            <div class="d-flex align-items-center justify-content-between">
+                <div>
+                    <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'} me-2"></i>
+                    ${message}
+                </div>
+                <button type="button" class="btn-close btn-sm" onclick="this.parentElement.parentElement.remove()"></button>
+            </div>
+        `;
+        document.body.appendChild(toast);
+        
+        setTimeout(() => {
+            if (toast.parentElement) toast.remove();
+        }, 5000);
+    }
+
+    // =============================================
+    // Update Unread Count in Header
+    // =============================================
+    function updateUnreadCount(count) {
+        const badge = document.getElementById('notifBadge');
+        const dropdownBadge = document.getElementById('notifBadgeDropdown');
+        const unreadCountEl = document.getElementById('unreadCount');
+        
+        if (badge) {
+            if (count > 0) {
+                badge.textContent = count > 99 ? '99+' : count;
+                badge.style.display = 'inline-block';
+            } else {
+                badge.style.display = 'none';
+            }
+        }
+        
+        if (dropdownBadge) {
+            if (count > 0) {
+                dropdownBadge.textContent = count > 99 ? '99+' : count;
+                dropdownBadge.style.display = 'inline-block';
+            } else {
+                dropdownBadge.style.display = 'none';
+            }
+        }
+        
+        if (unreadCountEl) {
+            unreadCountEl.textContent = count;
+        }
+    }
+
+    // =============================================
+    // Mark as Read (AJAX)
+    // =============================================
+    document.querySelectorAll('.mark-read-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const id = this.dataset.id;
+            const card = document.getElementById(`notif-${id}`);
+            const statusSpan = document.getElementById(`status-${id}`);
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || 
+                              document.querySelector('input[name="csrfmiddlewaretoken"]')?.value;
+            
+            fetch(`/notif/mark-read/${id}/`, {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': csrfToken
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // به‌روزرسانی کارت
+                    card.classList.remove('unread');
+                    if (statusSpan) {
+                        statusSpan.innerHTML = '<i class="fas fa-check-circle me-1"></i> Read';
+                        statusSpan.className = 'text-success';
+                    }
+                    // حذف دکمه Mark as Read
+                    this.remove();
+                    // به‌روزرسانی تعداد
+                    updateUnreadCount(data.unread_count);
+                    showToast('Notification marked as read ✅');
+                }
+            })
+            .catch(error => {
+                showToast('An error occurred', 'error');
+            });
+        });
+    });
+
+    // =============================================
+    // Delete Notification (AJAX)
+    // =============================================
+    document.querySelectorAll('.delete-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            if (!confirm('Delete this notification?')) return;
+            
+            const id = this.dataset.id;
+            const card = document.getElementById(`notif-${id}`);
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || 
+                              document.querySelector('input[name="csrfmiddlewaretoken"]')?.value;
+            
+            fetch(`/notif/delete/${id}/`, {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': csrfToken
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // انیمیشن حذف
+                    card.classList.add('removing');
+                    setTimeout(() => {
+                        card.remove();
+                        // به‌روزرسانی تعداد کل
+                        const totalEl = document.getElementById('totalCount');
+                        if (totalEl) {
+                            totalEl.textContent = parseInt(totalEl.textContent) - 1;
+                        }
+                        updateUnreadCount(data.unread_count);
+                        
+                        // بررسی اگر نوتیفیکیشنی باقی نمانده
+                        const remaining = document.querySelectorAll('.notif-card');
+                        if (remaining.length === 0) {
+                            document.getElementById('notificationsContainer').innerHTML = `
+                                <div class="empty-state-notif">
+                                    <i class="fas fa-bell-slash fa-4x text-muted mb-3"></i>
+                                    <h5 class="text-muted">No Notifications</h5>
+                                    <p class="text-muted small">You're all caught up!</p>
+                                </div>
+                            `;
+                        }
+                    }, 300);
+                    showToast('Notification deleted 🗑️');
+                }
+            })
+            .catch(error => {
+                showToast('An error occurred', 'error');
+            });
+        });
+    });
+
+    // =============================================
+    // Mark All as Read (AJAX)
+    // =============================================
+    const markAllBtn = document.getElementById('markAllReadBtn');
+    if (markAllBtn) {
+        markAllBtn.addEventListener('click', function() {
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || 
+                              document.querySelector('input[name="csrfmiddlewaretoken"]')?.value;
+            
+            fetch('/notif/mark-all-read/', {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': csrfToken
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // به‌روزرسانی همه کارت‌ها
+                    document.querySelectorAll('.notif-card').forEach(card => {
+                        card.classList.remove('unread');
+                        const statusSpan = card.querySelector('.text-primary');
+                        if (statusSpan) {
+                            statusSpan.innerHTML = '<i class="fas fa-check-circle me-1"></i> Read';
+                            statusSpan.className = 'text-success';
+                        }
+                        const markBtn = card.querySelector('.mark-read-btn');
+                        if (markBtn) markBtn.remove();
+                    });
+                    
+                    updateUnreadCount(0);
+                    this.remove(); // حذف دکمه Mark All
+                    showToast(`All notifications marked as read ✅`);
+                }
+            })
+            .catch(error => {
+                showToast('An error occurred', 'error');
+            });
+        });
+    }
+
+    // =============================================
+    // CSRF Token Setup برای fetch
+    // =============================================
+    function getCSRFToken() {
+        const token = document.querySelector('[name=csrfmiddlewaretoken]');
+        if (token) return token.value;
+        const input = document.querySelector('input[name="csrfmiddlewaretoken"]');
+        if (input) return input.value;
+        return '';
+    }
+</script>
 {% endblock %}
