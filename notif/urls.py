@@ -1,7 +1,7 @@
 from django.urls import path
 from . import views
 
-app_name = 'notif' 
+app_name = 'notif'
 
 urlpatterns = [
     path('', views.NotificationListView.as_view(), name='list'),

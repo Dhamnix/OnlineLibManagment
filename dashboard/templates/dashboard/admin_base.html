@@ -351,24 +351,28 @@
             <div class="nav-section-title">LIBRARY</div>
             <a href="{% url 'books:admin_book_list' %}" class="sidebar-link">
                 <i class="fas fa-book"></i>
-                <span>Books</span>
+                <span>Manage Books</span>
             </a>
             <a href="{% url 'books:book_create' %}" class="sidebar-link">
                 <i class="fas fa-plus-circle"></i>
                 <span>Add Book</span>
             </a>
-            <a href="{% url 'borrowing:borrow_list' %}" class="sidebar-link">
+
+            <!-- این لینک به صفحه مدیریت قرض‌ها در پنل ادمین می‌رود -->
+            <a href="{% url 'borrowing:admin_borrow_list' %}" class="sidebar-link">
                 <i class="fas fa-hand-holding-heart"></i>
-                <span>Borrowings</span>
+                <span>Manage Borrowings</span>
             </a>
+
             <a href="{% url 'borrowing:reservation_list' %}" class="sidebar-link">
                 <i class="fas fa-clock"></i>
-                <span>Reservations</span>
+                <span>Manage Reservations</span>
             </a>
             <a href="{% url 'borrowing:fine_list' %}" class="sidebar-link">
                 <i class="fas fa-coins"></i>
-                <span>Fines</span>
+                <span>Manage Fines</span>
             </a>
+
             <div class="nav-section-title">USERS</div>
             <a href="{% url 'dashboard:admin_users' %}" class="sidebar-link">
                 <i class="fas fa-users"></i>

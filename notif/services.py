@@ -1,21 +1,8 @@
-# notif/services.py
 from django.utils import timezone
 from .models import Notification
 
 def create_notification(user, notification_type, title, message, link=None):
-    """
-    Create a new notification for a user.
-    
-    Args:
-        user: User object
-        notification_type: Type from Notification.Type choices
-        title: Notification title
-        message: Notification message content
-        link: Optional URL to redirect when notification is clicked
-    
-    Returns:
-        Notification: Created notification object
-    """
+    """Create a new notification for a user."""
     notification = Notification.objects.create(
         user=user,
         type=notification_type,
@@ -35,7 +22,7 @@ def notify_borrow(borrow):
         message=(
             f"You have successfully borrowed '{borrow.book.title}' by {borrow.book.author}.\n"
             f"📅 Due Date: {borrow.due_date.strftime('%Y-%m-%d')}\n"
-            f"⏰ Please return the book on or before the due date to avoid fines."
+            f"Please return the book on or before the due date."
         ),
         link="/borrowing/"
     )
@@ -49,7 +36,7 @@ def notify_return(borrow):
         message=(
             f"You have successfully returned '{borrow.book.title}' by {borrow.book.author}.\n"
             f"📅 Return Date: {borrow.return_date.strftime('%Y-%m-%d')}\n"
-            f"Thank you for returning the book on time!"
+            f"Thank you for returning the book!"
         ),
         link="/borrowing/history/"
     )
@@ -62,7 +49,7 @@ def notify_reservation(reservation):
         title=f"🔔 Reserved Book Available: {reservation.book.title}",
         message=(
             f"The book '{reservation.book.title}' by {reservation.book.author} you reserved is NOW AVAILABLE!\n"
-            f"📅 Please visit the library and borrow it before someone else takes it."
+            f"Please visit the library and borrow it."
         ),
         link=f"/books/{reservation.book.pk}/"
     )
@@ -82,7 +69,7 @@ def notify_reservation_created(reservation):
     )
 
 def notify_fine(fine):
-    """Send notification when a fine is created or updated."""
+    """Send notification when a fine is created."""
     create_notification(
         user=fine.user,
         notification_type=Notification.Type.FINE,
@@ -90,7 +77,7 @@ def notify_fine(fine):
         message=(
             f"You have incurred a fine of ${fine.amount} for late return of '{fine.borrow.book.title}'.\n"
             f"📅 Due Date: {fine.borrow.due_date.strftime('%Y-%m-%d')}\n"
-            f"⚠️ Please pay the fine as soon as possible to continue borrowing books."
+            f"Please pay the fine as soon as possible."
         ),
         link="/borrowing/fines/"
     )
@@ -103,7 +90,6 @@ def notify_fine_paid(fine):
         title=f"✅ Fine Paid: ${fine.amount}",
         message=(
             f"You have successfully paid the fine of ${fine.amount} for '{fine.borrow.book.title}'.\n"
-            f"📅 Payment Date: {fine.updated_at.strftime('%Y-%m-%d')}\n"
             f"Thank you for clearing your fines!"
         ),
         link="/borrowing/fines/"
@@ -123,21 +109,14 @@ def notify_reminder(borrow, days_left):
         message = (
             f"REMINDER: '{borrow.book.title}' is due TOMORROW!\n"
             f"📅 Due Date: {borrow.due_date.strftime('%Y-%m-%d')}\n"
-            f"Please return it tomorrow to avoid fines."
-        )
-    elif days_left == 2:
-        title = f"⏰ Reminder: {borrow.book.title} Due in 2 Days"
-        message = (
-            f"REMINDER: '{borrow.book.title}' is due in 2 days.\n"
-            f"📅 Due Date: {borrow.due_date.strftime('%Y-%m-%d')}\n"
-            f"Please return it on time to avoid fines."
+            f"Please return it tomorrow."
         )
     else:
         title = f"📖 Reminder: {borrow.book.title} Due in {days_left} Days"
         message = (
             f"REMINDER: '{borrow.book.title}' is due in {days_left} days.\n"
             f"📅 Due Date: {borrow.due_date.strftime('%Y-%m-%d')}\n"
-            f"Please plan to return it on time."
+            f"Please return it on time."
         )
     
     create_notification(
@@ -159,7 +138,6 @@ def notify_overdue(borrow):
         message=(
             f"WARNING: '{borrow.book.title}' is OVERDUE by {days_overdue} day(s)!\n"
             f"📅 Due Date: {borrow.due_date.strftime('%Y-%m-%d')}\n"
-            f"💰 Fines are accumulating at ${getattr(settings, 'FINE_PER_DAY', 1.00)} per day.\n"
             f"Please return it IMMEDIATELY!"
         ),
         link="/borrowing/fines/"
@@ -200,7 +178,7 @@ def notify_password_changed(user):
         user=user,
         notification_type=Notification.Type.SYSTEM,
         title="🔐 Password Changed",
-        message="Your password has been changed successfully.\nIf you did not make this change, please contact support immediately.",
+        message="Your password has been changed successfully.",
         link="/accounts/profile/"
     )
 
@@ -226,8 +204,7 @@ def notify_review_updated(user, book, rating):
         title=f"🔄 Review Updated: {book.title}",
         message=(
             f"You have updated your review for '{book.title}'.\n"
-            f"⭐ New Rating: {rating}/5\n"
-            f"Thank you for updating your feedback!"
+            f"⭐ New Rating: {rating}/5"
         ),
         link=f"/books/{book.pk}/"
     )
@@ -240,22 +217,7 @@ def notify_reservation_cancelled(reservation):
         title=f"❌ Reservation Cancelled: {reservation.book.title}",
         message=(
             f"You have cancelled your reservation for '{reservation.book.title}'.\n"
-            f"📅 Cancellation Date: {timezone.now().strftime('%Y-%m-%d')}\n"
             f"You can reserve it again later if you change your mind."
         ),
         link="/borrowing/reservations/"
-    )
-
-def notify_borrow_extended(borrow, new_due_date):
-    """Send notification when a borrow is extended."""
-    create_notification(
-        user=borrow.user,
-        notification_type=Notification.Type.BORROW,
-        title=f"📅 Borrow Extended: {borrow.book.title}",
-        message=(
-            f"Your borrow period for '{borrow.book.title}' has been extended.\n"
-            f"🔄 New Due Date: {new_due_date.strftime('%Y-%m-%d')}\n"
-            f"Please return the book by the new due date."
-        ),
-        link="/borrowing/"
     )

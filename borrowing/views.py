@@ -1,4 +1,3 @@
-# borrowing/views.py
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db import transaction
@@ -8,8 +7,6 @@ from django.utils import timezone
 from django.views import View
 from django.views.generic import ListView
 from django.core.exceptions import ValidationError
-from django.core.mail import send_mail
-from django.conf import settings
 
 from books.models import Book
 from .models import Borrow, Reservation, Fine
@@ -20,8 +17,7 @@ from notif.services import (
     notify_reservation_created,
     notify_fine,
     notify_fine_paid,
-    notify_overdue,
-    notify_reminder,
+    notify_reservation_cancelled,
     create_notification
 )
 from notif.models import Notification
@@ -37,14 +33,14 @@ class BorrowListView(LoginRequiredMixin, ListView):
         user = self.request.user
         qs = Borrow.objects.select_related("book", "user")
         if user.is_superuser or getattr(user, "role", None) == "ADMIN" or user.has_perm("borrowing.manage_borrowings"):
-            return qs.all()
-        return qs.filter(user=user)
+            return qs.all().order_by('-borrow_date')
+        return qs.filter(user=user).order_by('-borrow_date')
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         user = self.request.user
         
-        if user.is_superuser or getattr(user, "role", None) == "ADMIN":
+        if user.is_superuser or getattr(user, "role", None) == "ADMIN" or user.has_perm("borrowing.manage_borrowings"):
             all_borrowings = Borrow.objects.all()
         else:
             all_borrowings = Borrow.objects.filter(user=user)
@@ -68,7 +64,109 @@ class BorrowListView(LoginRequiredMixin, ListView):
         ).count()
         
         context['now'] = now
+        context['is_admin'] = user.is_superuser or getattr(user, "role", None) == "ADMIN"
         
+        return context
+
+
+# borrowing/views.py - AdminBorrowListView
+
+class AdminBorrowListView(LoginRequiredMixin, ListView):
+    """ویو مخصوص ادمین برای مدیریت همه قرض‌ها"""
+    model = Borrow
+    template_name = "borrowing/admin_borrow_list.html"
+    context_object_name = "borrowings"
+    paginate_by = 20
+
+    def dispatch(self, request, *args, **kwargs):
+        if not (request.user.is_superuser or getattr(request.user, "role", None) == "ADMIN"):
+            messages.error(request, "You don't have permission to access this page.", extra_tags="danger")
+            return redirect('borrowing:borrow_list')
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_queryset(self):
+        queryset = Borrow.objects.select_related("book", "user").all().order_by('-borrow_date')
+        
+        status = self.request.GET.get('status', '')
+        if status:
+            queryset = queryset.filter(status=status)
+        
+        search = self.request.GET.get('search', '')
+        if search:
+            queryset = queryset.filter(
+                Q(book__title__icontains=search) |
+                Q(user__username__icontains=search) |
+                Q(user__email__icontains=search) |
+                Q(user__first_name__icontains=search) |
+                Q(user__last_name__icontains=search)
+            )
+        
+        return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['status_filter'] = self.request.GET.get('status', '')
+        context['search'] = self.request.GET.get('search', '')
+        context['now'] = timezone.now()
+        
+        # آمار برای کارت‌ها
+        all_borrowings = Borrow.objects.all()
+        now = timezone.now()
+        three_days_later = now + timezone.timedelta(days=3)
+        
+        context['total_active'] = all_borrowings.filter(
+            status=Borrow.StatusChoices.BORROWED
+        ).count()
+        
+        context['due_soon_count'] = all_borrowings.filter(
+            status=Borrow.StatusChoices.BORROWED,
+            due_date__gte=now,
+            due_date__lte=three_days_later
+        ).count()
+        
+        context['overdue_count'] = all_borrowings.filter(
+            status=Borrow.StatusChoices.BORROWED,
+            due_date__lt=now
+        ).count()
+        
+        context['returned_count'] = all_borrowings.filter(
+            status=Borrow.StatusChoices.RETURNED
+        ).count()
+        
+        return context
+    """ویو مخصوص ادمین برای مدیریت همه قرض‌ها"""
+    model = Borrow
+    template_name = "borrowing/admin_borrow_list.html"
+    context_object_name = "borrowings"
+    paginate_by = 20
+
+    def dispatch(self, request, *args, **kwargs):
+        if not (request.user.is_superuser or getattr(request.user, "role", None) == "ADMIN"):
+            return redirect('borrowing:borrow_list')
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_queryset(self):
+        queryset = Borrow.objects.select_related("book", "user").all().order_by('-borrow_date')
+        
+        status = self.request.GET.get('status', '')
+        if status:
+            queryset = queryset.filter(status=status)
+        
+        search = self.request.GET.get('search', '')
+        if search:
+            queryset = queryset.filter(
+                Q(book__title__icontains=search) |
+                Q(user__username__icontains=search) |
+                Q(user__email__icontains=search)
+            )
+        
+        return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['status_filter'] = self.request.GET.get('status', '')
+        context['search'] = self.request.GET.get('search', '')
+        context['now'] = timezone.now()
         return context
 
 
@@ -96,7 +194,7 @@ class BorrowBookView(LoginRequiredMixin, View):
                 ).exists()
 
                 if not has_available_reservation and book_to_borrow.available_copies <= 0:
-                    messages.error(request, "This book is currently out of stock and cannot be borrowed.", extra_tags="danger")
+                    messages.error(request, "This book is currently out of stock.", extra_tags="danger")
                     return redirect("books:book_detail", pk=book_id)
                 
                 book_to_borrow.available_copies -= 1
@@ -114,22 +212,19 @@ class BorrowBookView(LoginRequiredMixin, View):
                     status__in=[Reservation.StatusChoices.PENDING, Reservation.StatusChoices.AVAILABLE]
                 ).update(status=Reservation.StatusChoices.COMPLETED)
                 
-                # =============================================
-                # 📢 ارسال نوتیفیکیشن برای قرض گرفتن کتاب
-                # =============================================
                 notify_borrow(borrow)
-                # =============================================
                 
             messages.success(request, f"You have successfully borrowed '{book.title}'.")
             return redirect("borrowing:borrow_list")
         except Exception:
-            messages.error(request, "An error occurred while borrowing the book. Please try again.", extra_tags="danger")
+            messages.error(request, "An error occurred while borrowing the book.", extra_tags="danger")
             return redirect("books:book_detail", pk=book_id)
 
 
 class ReturnBookView(LoginRequiredMixin, View):
     def post(self, request, pk):
         user = request.user
+        
         if user.is_superuser or getattr(user, "role", None) == "ADMIN" or user.has_perm("borrowing.manage_borrowings"):
             borrow = get_object_or_404(Borrow, pk=pk)
         else:
@@ -152,15 +247,10 @@ class ReturnBookView(LoginRequiredMixin, View):
                 from .services import create_or_update_fine_for_borrow
                 fine = create_or_update_fine_for_borrow(borrow)
                 
-                # =============================================
-                # 📢 ارسال نوتیفیکیشن برای بازگشت کتاب
-                # =============================================
                 notify_return(borrow)
                 
-                # اگر جریمه داشت، نوتیفیکیشن جریمه ارسال می‌شود
                 if fine and fine.amount > 0:
                     notify_fine(fine)
-                # =============================================
 
                 oldest_res = Reservation.objects.filter(
                     book=book,
@@ -170,26 +260,7 @@ class ReturnBookView(LoginRequiredMixin, View):
                 if oldest_res:
                     oldest_res.status = Reservation.StatusChoices.AVAILABLE
                     oldest_res.save()
-
-                    # =============================================
-                    # 📢 ارسال نوتیفیکیشن برای موجود شدن کتاب رزرو شده
-                    # =============================================
                     notify_reservation(oldest_res)
-                    # =============================================
-
-                    subject = f"Reserved Book Available: {book.title}"
-                    message = (
-                        f"Hello {oldest_res.user.username},\n\n"
-                        f"The book '{book.title}' you reserved is now available for borrowing!\n"
-                        f"Please visit the library system to check it out."
-                    )
-                    send_mail(
-                        subject,
-                        message,
-                        getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@library.com"),
-                        [oldest_res.user.email],
-                        fail_silently=True
-                    )
                     
                     messages.info(
                         request,
@@ -198,7 +269,7 @@ class ReturnBookView(LoginRequiredMixin, View):
                 
             messages.success(request, f"You have successfully returned '{borrow.book.title}'.")
         except Exception:
-            messages.error(request, "An error occurred while returning the book. Please try again.", extra_tags="danger")
+            messages.error(request, "An error occurred while returning the book.", extra_tags="danger")
             
         return redirect("borrowing:borrow_list")
 
@@ -213,7 +284,7 @@ class BorrowHistoryView(LoginRequiredMixin, ListView):
         user = self.request.user
         qs = Borrow.objects.select_related("book", "user")
         if user.is_superuser or getattr(user, "role", None) == "ADMIN" or user.has_perm("borrowing.manage_borrowings"):
-            queryset = qs
+            queryset = qs.all()
         else:
             queryset = qs.filter(user=user)
 
@@ -227,13 +298,14 @@ class BorrowHistoryView(LoginRequiredMixin, ListView):
         elif status_filter == "overdue":
             queryset = queryset.filter(status=Borrow.StatusChoices.BORROWED, due_date__lt=now)
 
-        return queryset
+        return queryset.order_by('-borrow_date')
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         status = self.request.GET.get("status", "").strip().lower()
         context["current_status"] = status
         context["now"] = timezone.now()
+        context['is_admin'] = self.request.user.is_superuser or getattr(self.request.user, "role", None) == "ADMIN"
         return context
 
 
@@ -274,19 +346,15 @@ class ReserveBookView(LoginRequiredMixin, View):
                 res.clean()
                 res.save()
                 
-                # =============================================
-                # 📢 ارسال نوتیفیکیشن برای رزرو کتاب
-                # =============================================
                 notify_reservation_created(res)
-                # =============================================
                 
             messages.success(request, f"You have successfully reserved '{book.title}'.")
             return redirect("borrowing:reservation_list")
         except ValidationError as e:
-            messages.error(request, e.message, extra_tags="danger")
+            messages.error(request, str(e), extra_tags="danger")
             return redirect("books:book_detail", pk=book_id)
         except Exception:
-            messages.error(request, "An error occurred while placing the reservation. Please try again.", extra_tags="danger")
+            messages.error(request, "An error occurred while placing the reservation.", extra_tags="danger")
             return redirect("books:book_detail", pk=book_id)
 
 
@@ -315,6 +383,7 @@ class ReservationListView(LoginRequiredMixin, ListView):
         context['pending_count'] = all_reservations.filter(status=Reservation.StatusChoices.PENDING).count()
         context['available_count'] = all_reservations.filter(status=Reservation.StatusChoices.AVAILABLE).count()
         context['completed_count'] = all_reservations.filter(status=Reservation.StatusChoices.COMPLETED).count()
+        context['is_admin'] = user.is_superuser or getattr(user, "role", None) == "ADMIN"
         
         return context
 
@@ -322,29 +391,20 @@ class ReservationListView(LoginRequiredMixin, ListView):
 class CancelReservationView(LoginRequiredMixin, View):
     def post(self, request, pk):
         user = request.user
+        
         if user.is_superuser or getattr(user, "role", None) == "ADMIN" or user.has_perm("borrowing.manage_borrowings"):
             res = get_object_or_404(Reservation, pk=pk)
         else:
             res = get_object_or_404(Reservation, pk=pk, user=user)
 
-        if res.status != Reservation.StatusChoices.PENDING and res.status != Reservation.StatusChoices.AVAILABLE:
+        if res.status not in [Reservation.StatusChoices.PENDING, Reservation.StatusChoices.AVAILABLE]:
             messages.warning(request, "This reservation cannot be cancelled.")
             return redirect("borrowing:reservation_list")
 
         res.status = Reservation.StatusChoices.CANCELLED
         res.save()
         
-        # =============================================
-        # 📢 ارسال نوتیفیکیشن برای لغو رزرو
-        # =============================================
-        create_notification(
-            user=user,
-            notification_type=Notification.Type.RESERVATION,
-            title=f"❌ Reservation Cancelled: {res.book.title}",
-            message=f"You have cancelled your reservation for '{res.book.title}'.",
-            link="/borrowing/reservations/"
-        )
-        # =============================================
+        notify_reservation_cancelled(res)
         
         messages.success(request, f"Reservation for '{res.book.title}' has been successfully cancelled.")
         return redirect("borrowing:reservation_list")
@@ -392,6 +452,7 @@ class FineListView(LoginRequiredMixin, ListView):
         context['unpaid_count'] = unpaid_fines.count()
         context['paid_count'] = paid_fines.count()
         context['now'] = timezone.now()
+        context['is_admin'] = user.is_superuser or getattr(user, "role", None) == "ADMIN"
         
         return context
 
@@ -399,6 +460,7 @@ class FineListView(LoginRequiredMixin, ListView):
 class PayFineView(LoginRequiredMixin, View):
     def post(self, request, pk):
         user = request.user
+        
         if user.is_superuser or getattr(user, "role", None) == "ADMIN" or user.has_perm("borrowing.manage_borrowings"):
             fine = get_object_or_404(Fine, pk=pk)
         else:
@@ -411,11 +473,7 @@ class PayFineView(LoginRequiredMixin, View):
         fine.is_paid = True
         fine.save()
         
-        # =============================================
-        # 📢 ارسال نوتیفیکیشن برای پرداخت جریمه
-        # =============================================
         notify_fine_paid(fine)
-        # =============================================
         
-        messages.success(request, f"Fine of {fine.amount} for '{fine.borrow.book.title}' has been successfully paid.")
+        messages.success(request, f"Fine of ${fine.amount} for '{fine.borrow.book.title}' has been successfully paid.")
         return redirect("borrowing:fine_list")
