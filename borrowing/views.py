@@ -535,3 +535,59 @@ class AdminReservationListView(LoginRequiredMixin, ListView):
         ).count()
         
         return context
+    
+
+class AdminFineListView(LoginRequiredMixin, ListView):
+    model = Fine
+    template_name = "borrowing/admin_fine_list.html"
+    context_object_name = "fines"
+    paginate_by = 20
+
+    def dispatch(self, request, *args, **kwargs):
+        if not (request.user.is_superuser or getattr(request.user, "role", None) == "ADMIN"):
+            messages.error(request, "You don't have permission to access this page.", extra_tags="danger")
+            return redirect('borrowing:fine_list')
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_queryset(self):
+        from .services import update_all_overdue_fines
+        update_all_overdue_fines()
+        
+        queryset = Fine.objects.select_related("borrow", "user", "borrow__book").all().order_by('-borrow__borrow_date')
+        
+        status = self.request.GET.get('status', '')
+        if status == 'unpaid':
+            queryset = queryset.filter(is_paid=False)
+        elif status == 'paid':
+            queryset = queryset.filter(is_paid=True)
+        
+        search = self.request.GET.get('search', '')
+        if search:
+            queryset = queryset.filter(
+                Q(borrow__book__title__icontains=search) |
+                Q(user__username__icontains=search) |
+                Q(user__email__icontains=search) |
+                Q(user__first_name__icontains=search) |
+                Q(user__last_name__icontains=search)
+            )
+        
+        return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['status_filter'] = self.request.GET.get('status', '')
+        context['search'] = self.request.GET.get('search', '')
+        context['now'] = timezone.now()
+        
+    
+        all_fines = Fine.objects.all()
+        
+        context['total_fines'] = all_fines.count()
+        context['unpaid_count'] = all_fines.filter(is_paid=False).count()
+        context['paid_count'] = all_fines.filter(is_paid=True).count()
+        
+        from django.db.models import Sum
+        context['total_unpaid_amount'] = all_fines.filter(is_paid=False).aggregate(total=Sum('amount'))['total'] or 0
+        context['total_paid_amount'] = all_fines.filter(is_paid=True).aggregate(total=Sum('amount'))['total'] or 0
+        
+        return context

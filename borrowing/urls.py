@@ -11,7 +11,8 @@ from .views import (
     FineListView,
     PayFineView,
     AdminBorrowListView,
-    AdminReservationListView, 
+    AdminReservationListView,
+    AdminFineListView,  
 )
 
 app_name = "borrowing"
@@ -19,7 +20,8 @@ app_name = "borrowing"
 urlpatterns = [
     path("", BorrowListView.as_view(), name="borrow_list"),
     path("admin/borrowings/", AdminBorrowListView.as_view(), name="admin_borrow_list"),
-    path("admin/reservations/", AdminReservationListView.as_view(), name="admin_reservation_list"),  # مسیر جدید
+    path("admin/reservations/", AdminReservationListView.as_view(), name="admin_reservation_list"),
+    path("admin/fines/", AdminFineListView.as_view(), name="admin_fine_list"),  # مسیر جدید
     path("history/", BorrowHistoryView.as_view(), name="borrow_history"),
     path("borrow/<int:book_id>/", BorrowBookView.as_view(), name="borrow_book"),
     path("return/<int:pk>/", ReturnBookView.as_view(), name="return_book"),

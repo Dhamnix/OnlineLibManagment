@@ -1,0 +1,276 @@
+{% extends "dashboard/admin_base.html" %}
+{% load static %}
+
+{% block title %}Manage Fines | Admin Panel{% endblock %}
+
+{% block page_title %}Manage Fines{% endblock %}
+{% block page_subtitle %}View and manage all library fines{% endblock %}
+
+{% block admin_content %}
+<div class="container-fluid px-0">
+    
+    <!-- نمایش پیام‌ها -->
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags|default:'info' }} alert-dismissible fade show mb-4" role="alert">
+                <i class="fas fa-{% if message.tags == 'success' %}check-circle{% else %}info-circle{% endif %} me-2"></i>
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <!-- کارت آمار -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3 col-6">
+            <div class="stat-card">
+                <div class="stat-icon" style="background: rgba(99,102,241,0.1);">
+                    <i class="fas fa-coins" style="color: #6366f1;"></i>
+                </div>
+                <div class="stat-number">{{ total_fines|default:"0" }}</div>
+                <div class="stat-label">Total Fines</div>
+            </div>
+        </div>
+        <div class="col-md-3 col-6">
+            <div class="stat-card">
+                <div class="stat-icon" style="background: rgba(239,68,68,0.1);">
+                    <i class="fas fa-exclamation-circle" style="color: #ef4444;"></i>
+                </div>
+                <div class="stat-number text-danger">{{ unpaid_count|default:"0" }}</div>
+                <div class="stat-label">Unpaid</div>
+            </div>
+        </div>
+        <div class="col-md-3 col-6">
+            <div class="stat-card">
+                <div class="stat-icon" style="background: rgba(16,185,129,0.1);">
+                    <i class="fas fa-check-circle" style="color: #10b981;"></i>
+                </div>
+                <div class="stat-number text-success">{{ paid_count|default:"0" }}</div>
+                <div class="stat-label">Paid</div>
+            </div>
+        </div>
+        <div class="col-md-3 col-6">
+            <div class="stat-card">
+                <div class="stat-icon" style="background: rgba(245,158,11,0.1);">
+                    <i class="fas fa-dollar-sign" style="color: #f59e0b;"></i>
+                </div>
+                <div class="stat-number text-warning">${{ total_unpaid_amount|floatformat:2 }}</div>
+                <div class="stat-label">Total Unpaid Amount</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- جستجو و فیلتر -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-2">
+                <div class="col-md-4">
+                    <input type="search" name="search" value="{{ search }}" 
+                           class="form-control form-control-sm" placeholder="Search by book title or user...">
+                </div>
+                <div class="col-md-3">
+                    <select name="status" class="form-select form-select-sm">
+                        <option value="">All Status</option>
+                        <option value="unpaid" {% if status_filter == 'unpaid' %}selected{% endif %}>Unpaid</option>
+                        <option value="paid" {% if status_filter == 'paid' %}selected{% endif %}>Paid</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-primary btn-sm w-100">
+                        <i class="fas fa-filter me-1"></i> Filter
+                    </button>
+                </div>
+                <div class="col-md-3 text-end">
+                    <span class="badge bg-secondary me-2">Total: {{ paginator.count }}</span>
+                    <a href="{% url 'borrowing:fine_list' %}" class="btn btn-sm btn-outline-secondary">
+                        <i class="fas fa-eye me-1"></i> User View
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- جدول جریمه‌ها -->
+    <div class="card">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>#</th>
+                            <th>User</th>
+                            <th>Book</th>
+                            <th>Amount</th>
+                            <th>Borrow Date</th>
+                            <th>Due Date</th>
+                            <th>Return Date</th>
+                            <th>Status</th>
+                            <th class="text-center">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for fine in fines %}
+                        <tr>
+                            <td>{{ fine.id }}</td>
+                            <td>
+                                <div class="d-flex align-items-center gap-2">
+                                    <div class="user-avatar-sm">
+                                        {{ fine.user.username|first|upper }}
+                                    </div>
+                                    <div>
+                                        <div class="fw-semibold small">{{ fine.user.username }}</div>
+                                        <div class="small text-muted">{{ fine.user.email }}</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="fw-semibold small">{{ fine.borrow.book.title|truncatechars:30 }}</div>
+                                <div class="small text-muted">{{ fine.borrow.book.author }}</div>
+                            </td>
+                            <td>
+                                <span class="fw-bold {% if not fine.is_paid %}text-danger{% else %}text-success{% endif %}">
+                                    ${{ fine.amount|floatformat:2 }}
+                                </span>
+                            </td>
+                            <td>{{ fine.borrow.borrow_date|date:"M d, Y" }}</td>
+                            <td>
+                                {{ fine.borrow.due_date|date:"M d, Y" }}
+                                {% if fine.borrow.due_date < now and not fine.is_paid %}
+                                    <span class="badge bg-danger ms-1">Overdue</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if fine.borrow.return_date %}
+                                    {{ fine.borrow.return_date|date:"M d, Y" }}
+                                {% else %}
+                                    <span class="text-muted">—</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if fine.is_paid %}
+                                    <span class="badge bg-success">
+                                        <i class="fas fa-check-circle me-1"></i> Paid
+                                    </span>
+                                {% else %}
+                                    <span class="badge bg-danger">
+                                        <i class="fas fa-exclamation-circle me-1"></i> Unpaid
+                                    </span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                <div class="btn-group btn-group-sm">
+                                    {% if not fine.is_paid %}
+                                        <form method="post" action="{% url 'borrowing:pay_fine' fine.pk %}" style="display:inline;">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn btn-success" title="Mark as Paid" onclick="return confirm('Pay this fine?')">
+                                                <i class="fas fa-check"></i>
+                                            </button>
+                                        </form>
+                                    {% endif %}
+                                    <a href="{% url 'books:book_detail' fine.borrow.book.pk %}" class="btn btn-outline-secondary" target="_blank" title="View Book">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    <a href="{% url 'dashboard:admin_user_profile' fine.user.pk %}" class="btn btn-outline-primary" title="View User Profile">
+                                        <i class="fas fa-user"></i>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="9" class="text-center py-4 text-muted">
+                                <i class="fas fa-coins fa-3x d-block mb-2"></i>
+                                No fines found
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pagination -->
+    {% if is_paginated %}
+    <nav class="mt-4">
+        <ul class="pagination justify-content-center pagination-sm">
+            {% if page_obj.has_previous %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search %}&search={{ search }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">
+                    <i class="fas fa-chevron-left"></i>
+                </a>
+            </li>
+            {% endif %}
+            {% for num in page_obj.paginator.page_range %}
+            <li class="page-item {% if num == page_obj.number %}active{% endif %}">
+                <a class="page-link" href="?page={{ num }}{% if search %}&search={{ search }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">{{ num }}</a>
+            </li>
+            {% endfor %}
+            {% if page_obj.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search %}&search={{ search }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">
+                    <i class="fas fa-chevron-right"></i>
+                </a>
+            </li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+</div>
+
+<style>
+    .stat-card {
+        background: white;
+        border-radius: 16px;
+        padding: 1rem;
+        text-align: center;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    }
+    .stat-icon {
+        width: 45px;
+        height: 45px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 0.5rem;
+    }
+    .stat-icon i {
+        font-size: 1.2rem;
+    }
+    .stat-number {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #0f172a;
+    }
+    .stat-label {
+        font-size: 0.7rem;
+        color: #64748b;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    .user-avatar-sm {
+        width: 32px;
+        height: 32px;
+        background: linear-gradient(135deg, #6366f1, #10b981);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: 600;
+        font-size: 0.8rem;
+        flex-shrink: 0;
+    }
+    .table td, .table th {
+        padding: 0.75rem;
+        font-size: 0.85rem;
+        vertical-align: middle;
+    }
+    .card {
+        border: none;
+        border-radius: 16px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    }
+</style>
+{% endblock %}
