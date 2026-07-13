@@ -1,3 +1,4 @@
+# reviews/views.py
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db.models import Avg
@@ -9,6 +10,7 @@ from django.views.generic import CreateView, DeleteView, UpdateView
 from books.models import Book
 from .forms import ReviewForm
 from .models import Review
+from notif.services import notify_review_added, notify_review_updated
 
 
 class ReviewCreateView(LoginRequiredMixin, CreateView):
@@ -19,7 +21,6 @@ class ReviewCreateView(LoginRequiredMixin, CreateView):
     def dispatch(self, request, *args, **kwargs):
         self.book = get_object_or_404(Book, pk=kwargs.get("book_pk"))
         
-        # Check if user already has a review for this book
         existing_review = Review.objects.filter(
             user=request.user,
             book=self.book
@@ -37,8 +38,16 @@ class ReviewCreateView(LoginRequiredMixin, CreateView):
     def form_valid(self, form):
         form.instance.user = self.request.user
         form.instance.book = self.book
+        response = super().form_valid(form)
+        
+        # =============================================
+        # 📢 ارسال نوتیفیکیشن برای ثبت نظر
+        # =============================================
+        notify_review_added(self.request.user, self.book, form.instance.rating)
+        # =============================================
+        
         messages.success(self.request, "Review added successfully!")
-        return super().form_valid(form)
+        return response
 
     def get_success_url(self):
         return reverse_lazy("books:book_detail", kwargs={"pk": self.book.pk})
@@ -67,8 +76,16 @@ class ReviewUpdateView(LoginRequiredMixin, UpdateView):
         return self.review
 
     def form_valid(self, form):
+        response = super().form_valid(form)
+        
+        # =============================================
+        # 📢 ارسال نوتیفیکیشن برای ویرایش نظر
+        # =============================================
+        notify_review_updated(self.request.user, self.book, form.instance.rating)
+        # =============================================
+        
         messages.success(self.request, "Review updated successfully!")
-        return super().form_valid(form)
+        return response
 
     def get_success_url(self):
         return reverse_lazy("books:book_detail", kwargs={"pk": self.book.pk})
@@ -96,6 +113,21 @@ class ReviewDeleteView(LoginRequiredMixin, DeleteView):
         return self.review
 
     def delete(self, request, *args, **kwargs):
+        # =============================================
+        # 📢 ارسال نوتیفیکیشن برای حذف نظر
+        # =============================================
+        from notif.services import create_notification
+        from notif.models import Notification
+        
+        create_notification(
+            user=request.user,
+            notification_type=Notification.Type.SYSTEM,
+            title=f"🗑️ Review Deleted: {self.book.title}",
+            message=f"You have deleted your review for '{self.book.title}'.",
+            link=f"/books/{self.book.pk}/"
+        )
+        # =============================================
+        
         messages.success(request, "Review deleted successfully!")
         return super().delete(request, *args, **kwargs)
 
@@ -110,4 +142,3 @@ def get_book_average_rating(book_id):
     )["avg_rating"]
     
     return round(average, 1) if average else 0
-
