@@ -1,3 +1,4 @@
+# reviews/views.py
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db.models import Avg
@@ -112,3 +113,13 @@ class ReviewDeleteView(LoginRequiredMixin, DeleteView):
 
     def get_success_url(self):
         return reverse_lazy("books:book_detail", kwargs={"pk": self.book.pk})
+
+
+
+def get_book_average_rating(book_id):
+    """Calculate and return average rating for a book."""
+    average = Review.objects.filter(book_id=book_id).aggregate(
+        avg_rating=Avg("rating")
+    )["avg_rating"]
+    
+    return round(average, 1) if average else 0
