@@ -358,16 +358,16 @@
                 <span>Add Book</span>
             </a>
 
-            <!-- این لینک به صفحه مدیریت قرض‌ها در پنل ادمین می‌رود -->
             <a href="{% url 'borrowing:admin_borrow_list' %}" class="sidebar-link">
                 <i class="fas fa-hand-holding-heart"></i>
                 <span>Manage Borrowings</span>
             </a>
 
-            <a href="{% url 'borrowing:reservation_list' %}" class="sidebar-link">
+            <a href="{% url 'borrowing:admin_reservation_list' %}" class="sidebar-link">
                 <i class="fas fa-clock"></i>
                 <span>Manage Reservations</span>
             </a>
+
             <a href="{% url 'borrowing:fine_list' %}" class="sidebar-link">
                 <i class="fas fa-coins"></i>
                 <span>Manage Fines</span>

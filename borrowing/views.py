@@ -477,3 +477,61 @@ class PayFineView(LoginRequiredMixin, View):
         
         messages.success(request, f"Fine of ${fine.amount} for '{fine.borrow.book.title}' has been successfully paid.")
         return redirect("borrowing:fine_list")
+    
+
+class AdminReservationListView(LoginRequiredMixin, ListView):
+    model = Reservation
+    template_name = "borrowing/admin_reservation_list.html"
+    context_object_name = "reservations"
+    paginate_by = 20
+
+    def dispatch(self, request, *args, **kwargs):
+        if not (request.user.is_superuser or getattr(request.user, "role", None) == "ADMIN"):
+            messages.error(request, "You don't have permission to access this page.", extra_tags="danger")
+            return redirect('borrowing:reservation_list')
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_queryset(self):
+        queryset = Reservation.objects.select_related("book", "user").all().order_by('-reservation_date')
+        
+        status = self.request.GET.get('status', '')
+        if status:
+            queryset = queryset.filter(status=status)
+        
+        search = self.request.GET.get('search', '')
+        if search:
+            queryset = queryset.filter(
+                Q(book__title__icontains=search) |
+                Q(user__username__icontains=search) |
+                Q(user__email__icontains=search) |
+                Q(user__first_name__icontains=search) |
+                Q(user__last_name__icontains=search)
+            )
+        
+        return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['status_filter'] = self.request.GET.get('status', '')
+        context['search'] = self.request.GET.get('search', '')
+        
+   
+        all_reservations = Reservation.objects.all()
+        
+        context['pending_count'] = all_reservations.filter(
+            status=Reservation.StatusChoices.PENDING
+        ).count()
+        
+        context['available_count'] = all_reservations.filter(
+            status=Reservation.StatusChoices.AVAILABLE
+        ).count()
+        
+        context['completed_count'] = all_reservations.filter(
+            status=Reservation.StatusChoices.COMPLETED
+        ).count()
+        
+        context['cancelled_count'] = all_reservations.filter(
+            status=Reservation.StatusChoices.CANCELLED
+        ).count()
+        
+        return context
