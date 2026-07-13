@@ -41,6 +41,19 @@
             {% if user.is_authenticated %}
             <div class="user-dropdown" id="userDropdown">
                 <div class="user-btn" id="userBtn">
+                    <a href="{% url 'notif:list' %}" 
+                       class="text-decoration-none me-2" 
+                       style="color: inherit; position: relative;" 
+                       onclick="event.stopPropagation();">
+                        <i class="fas fa-bell" style="font-size: 1.2rem;"></i>
+                        <span id="notifBadge" 
+                              class="badge bg-danger rounded-pill" 
+                              style="position: absolute; top: -8px; right: -10px; font-size: 0.55rem; padding: 2px 7px; display: none; min-width: 18px; animation: pulse 2s infinite;">
+                            0
+                        </span>
+                    </a>
+                    <!-- ============================================= -->
+                    
                     <div class="user-avatar">
                         {{ user.username|first|upper }}
                     </div>
@@ -50,10 +63,21 @@
                     </div>
                     <i class="fas fa-chevron-down dropdown-icon"></i>
                 </div>
+                
                 <div class="dropdown-menu-custom">
                     <a href="{% url 'accounts:profile' %}" class="dropdown-item-custom">
                         <i class="fas fa-user"></i> My Profile
                     </a>
+                    <a href="{% url 'notif:list' %}" class="dropdown-item-custom" style="position: relative;">
+                        <i class="fas fa-bell"></i> 
+                       Notifications
+                        <span id="notifBadgeDropdown" 
+                              class="badge bg-danger rounded-pill" 
+                              style="display: none; font-size: 0.6rem; padding: 2px 8px; margin-left: auto;">
+                            0
+                        </span>
+                    </a>
+                    <!-- ============================================= -->
                     <a href="{% url 'borrowing:reservation_list' %}" class="dropdown-item-custom">
                         <i class="fas fa-clock"></i> Reservations
                     </a>
@@ -83,8 +107,20 @@
     </div>
 </header>
 
+<style>
+    /* ============================================= */
+    /* انیمیشن چشمک‌زن برای زنگوله */
+    /* ============================================= */
+    @keyframes pulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.1); }
+    }
+</style>
+
 <script>
+    // =============================================
     // Header scroll effect
+    // =============================================
     (function() {
         const header = document.getElementById('modernHeader');
         if (header) {
@@ -98,7 +134,9 @@
         }
     })();
 
+    // =============================================
     // User dropdown
+    // =============================================
     (function() {
         const userBtn = document.getElementById('userBtn');
         const userDropdown = document.getElementById('userDropdown');
@@ -115,7 +153,9 @@
         }
     })();
 
+    // =============================================
     // Mobile menu
+    // =============================================
     (function() {
         const mobileBtn = document.getElementById('mobileMenuBtn');
         const navMenu = document.getElementById('navMenu');
@@ -145,7 +185,9 @@
         }
     })();
 
+    // =============================================
     // Active navigation highlight
+    // =============================================
     (function() {
         const currentPath = window.location.pathname;
         document.querySelectorAll('.nav-link-custom').forEach(link => {
@@ -156,5 +198,41 @@
                 link.classList.add('active');
             }
         });
+    })();
+
+    (function() {
+        const badge = document.getElementById('notifBadge');
+        const dropdownBadge = document.getElementById('notifBadgeDropdown');
+        
+        if (!badge) return;
+        
+        function updateBadges() {
+            fetch('{% url "notif:unread_count" %}')
+                .then(response => response.json())
+                .then(data => {
+                    const count = data.unread_count || 0;
+                    
+                    if (count > 0) {
+                        badge.textContent = count > 99 ? '99+' : count;
+                        badge.style.display = 'inline-block';
+                    } else {
+                        badge.style.display = 'none';
+                    }
+                    
+                    if (dropdownBadge) {
+                        if (count > 0) {
+                            dropdownBadge.textContent = count > 99 ? '99+' : count;
+                            dropdownBadge.style.display = 'inline-block';
+                        } else {
+                            dropdownBadge.style.display = 'none';
+                        }
+                    }
+                })
+                .catch(() => {
+                });
+        }
+        
+        updateBadges();
+        setInterval(updateBadges, 30000);
     })();
 </script>

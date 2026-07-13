@@ -26,6 +26,7 @@ urlpatterns = [
     path('books/', include('books.urls')),
     path('borrowing/', include('borrowing.urls')),
     path('reviews/', include('reviews.urls')),
+    path('notif/', include('notif.urls')), 
 ]
 
 if settings.DEBUG:

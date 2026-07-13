@@ -11,7 +11,7 @@ from .views import (
     AdminUserViewDetail,
     AdminUserEditView,
     AdminUserUpdateView,
-    AdminUserProfileView,  # اضافه شده
+    AdminUserProfileView,  
 )
 
 app_name = "dashboard"

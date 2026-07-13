@@ -1,0 +1,372 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Notifications | OnlineLib{% endblock %}
+
+{% block extra_css %}
+<style>
+    .notif-header {
+        background: linear-gradient(135deg, #1e293b, #0f172a);
+        border-radius: 24px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        color: white;
+    }
+    
+    .notif-stats {
+        display: flex;
+        gap: 1rem;
+        flex-wrap: wrap;
+        margin-bottom: 1.5rem;
+    }
+    
+    .stat-badge-notif {
+        background: white;
+        border-radius: 20px;
+        padding: 0.75rem 1.25rem;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+    
+    .stat-badge-notif i {
+        font-size: 1.2rem;
+        color: var(--primary);
+    }
+    
+    .stat-badge-notif .count {
+        font-weight: 700;
+        font-size: 1.2rem;
+        color: var(--dark);
+    }
+    
+    .stat-badge-notif .label {
+        font-size: 0.7rem;
+        color: var(--gray);
+    }
+    
+    .filter-tabs-notif {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .filter-btn-notif {
+        padding: 6px 18px;
+        border-radius: 40px;
+        background: white;
+        border: 1px solid var(--gray-light);
+        color: var(--gray);
+        text-decoration: none;
+        font-size: 0.8rem;
+        font-weight: 500;
+        transition: all 0.3s ease;
+    }
+    
+    .filter-btn-notif:hover,
+    .filter-btn-notif.active {
+        background: var(--primary);
+        border-color: var(--primary);
+        color: white;
+    }
+    
+    .notif-card {
+        background: white;
+        border-radius: 20px;
+        padding: 1.25rem;
+        margin-bottom: 0.75rem;
+        transition: all 0.3s ease;
+        border: 1px solid var(--gray-light);
+        position: relative;
+    }
+    
+    .notif-card.unread {
+        border-left: 4px solid var(--primary);
+        background: #f8fafc;
+    }
+    
+    .notif-card:hover {
+        transform: translateX(4px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    }
+    
+    .notif-card .notif-title {
+        font-weight: 600;
+        font-size: 0.95rem;
+        margin-bottom: 0.25rem;
+        color: var(--dark);
+    }
+    
+    .notif-card .notif-message {
+        font-size: 0.85rem;
+        color: var(--gray);
+        margin-bottom: 0.5rem;
+    }
+    
+    .notif-card .notif-meta {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        flex-wrap: wrap;
+        font-size: 0.7rem;
+        color: var(--gray);
+    }
+    
+    .notif-card .notif-meta .type-badge {
+        padding: 2px 10px;
+        border-radius: 30px;
+        font-size: 0.65rem;
+        font-weight: 600;
+    }
+    
+    .type-badge.borrow { background: #e0e7ff; color: #4f46e5; }
+    .type-badge.return { background: #dcfce7; color: #059669; }
+    .type-badge.reservation { background: #fef3c7; color: #d97706; }
+    .type-badge.fine { background: #fee2e2; color: #dc2626; }
+    .type-badge.reminder { background: #fce7f3; color: #db2777; }
+    .type-badge.system { background: #f1f5f9; color: #64748b; }
+    
+    .notif-actions {
+        display: flex;
+        gap: 0.5rem;
+        margin-top: 0.5rem;
+    }
+    
+    .notif-actions .btn-sm {
+        font-size: 0.7rem;
+        padding: 4px 14px;
+        border-radius: 30px;
+    }
+    
+    .empty-state-notif {
+        background: white;
+        border-radius: 32px;
+        padding: 3rem;
+        text-align: center;
+    }
+    
+    .mark-all-btn {
+        background: var(--primary);
+        border: none;
+        border-radius: 40px;
+        padding: 8px 24px;
+        font-weight: 600;
+        font-size: 0.85rem;
+        transition: all 0.3s ease;
+    }
+    
+    .mark-all-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(99,102,241,0.3);
+    }
+    
+    @media (max-width: 768px) {
+        .notif-header {
+            padding: 1.5rem;
+            text-align: center;
+        }
+        
+        .notif-stats {
+            justify-content: center;
+        }
+        
+        .filter-tabs-notif {
+            justify-content: center;
+        }
+        
+        .notif-card {
+            text-align: center;
+        }
+        
+        .notif-actions {
+            justify-content: center;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="py-4 py-md-5 bg-light min-vh-100">
+    <div class="container">
+        
+        <!-- Header -->
+        <div class="notif-header">
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center">
+                <div>
+                    <h1 class="fw-bold mb-2">
+                        <i class="fas fa-bell me-2"></i>
+                        Notifications
+                    </h1>
+                    <p class="opacity-75 mb-0">
+                        Stay updated with your library activity
+                    </p>
+                </div>
+                <div class="mt-3 mt-md-0">
+                    {% if unread_count > 0 %}
+                    <form method="post" action="{% url 'notif:mark_all_read' %}" class="d-inline">
+                        {% csrf_token %}
+                        <button type="submit" class="mark-all-btn btn btn-primary">
+                            <i class="fas fa-check-double me-1"></i>
+                            Mark All as Read
+                        </button>
+                    </form>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Stats -->
+        <div class="notif-stats">
+            <div class="stat-badge-notif">
+                <i class="fas fa-envelope"></i>
+                <div>
+                    <div class="count">{{ total_count|default:"0" }}</div>
+                    <div class="label">Total</div>
+                </div>
+            </div>
+            <div class="stat-badge-notif">
+                <i class="fas fa-envelope-open"></i>
+                <div>
+                    <div class="count">{{ unread_count|default:"0" }}</div>
+                    <div class="label">Unread</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filter Tabs -->
+        <div class="filter-tabs-notif">
+            <a href="{% url 'notif:list' %}" 
+               class="filter-btn-notif {% if not current_type and not current_status %}active{% endif %}">
+                <i class="fas fa-list"></i> All
+            </a>
+            <a href="{% url 'notif:list' %}?status=unread" 
+               class="filter-btn-notif {% if current_status == 'unread' %}active{% endif %}">
+                <i class="fas fa-envelope"></i> Unread
+            </a>
+            <a href="{% url 'notif:list' %}?status=read" 
+               class="filter-btn-notif {% if current_status == 'read' %}active{% endif %}">
+                <i class="fas fa-check-circle"></i> Read
+            </a>
+            <a href="{% url 'notif:list' %}?type=BORROW" 
+               class="filter-btn-notif {% if current_type == 'BORROW' %}active{% endif %}">
+                <i class="fas fa-book"></i> Borrow
+            </a>
+            <a href="{% url 'notif:list' %}?type=RESERVATION" 
+               class="filter-btn-notif {% if current_type == 'RESERVATION' %}active{% endif %}">
+                <i class="fas fa-clock"></i> Reservation
+            </a>
+            <a href="{% url 'notif:list' %}?type=FINE" 
+               class="filter-btn-notif {% if current_type == 'FINE' %}active{% endif %}">
+                <i class="fas fa-coins"></i> Fine
+            </a>
+            <a href="{% url 'notif:list' %}?type=REMINDER" 
+               class="filter-btn-notif {% if current_type == 'REMINDER' %}active{% endif %}">
+                <i class="fas fa-hourglass-half"></i> Reminder
+            </a>
+        </div>
+
+        <!-- Notifications List -->
+        {% if notifications %}
+            {% for notification in notifications %}
+                <div class="notif-card {% if not notification.is_read %}unread{% endif %}">
+                    <div class="notif-title">
+                        {% if not notification.is_read %}
+                            <span class="badge bg-primary me-2">New</span>
+                        {% endif %}
+                        {{ notification.title }}
+                    </div>
+                    <div class="notif-message">{{ notification.message }}</div>
+                    <div class="notif-meta">
+                        <span class="type-badge {{ notification.type|lower }}">
+                            {{ notification.get_type_display }}
+                        </span>
+                        <span>
+                            <i class="far fa-clock me-1"></i>
+                            {{ notification.created_at|date:"M d, Y H:i" }}
+                        </span>
+                        {% if notification.is_read %}
+                            <span class="text-success">
+                                <i class="fas fa-check-circle me-1"></i> Read
+                            </span>
+                        {% else %}
+                            <span class="text-primary">
+                                <i class="fas fa-circle me-1" style="font-size: 0.5rem;"></i> Unread
+                            </span>
+                        {% endif %}
+                    </div>
+                    <div class="notif-actions">
+                        {% if not notification.is_read %}
+                            <form method="post" action="{% url 'notif:mark_read' notification.pk %}" class="d-inline">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm btn-primary">
+                                    <i class="fas fa-check me-1"></i> Mark as Read
+                                </button>
+                            </form>
+                        {% endif %}
+                        {% if notification.link %}
+                            <a href="{{ notification.link }}" class="btn btn-sm btn-outline-primary">
+                                <i class="fas fa-external-link-alt me-1"></i> View
+                            </a>
+                        {% endif %}
+                        <form method="post" action="{% url 'notif:delete' notification.pk %}" 
+                              class="d-inline" 
+                              onsubmit="return confirm('Delete this notification?');">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-sm btn-outline-danger">
+                                <i class="fas fa-trash me-1"></i> Delete
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            {% endfor %}
+        {% else %}
+            <div class="empty-state-notif">
+                <i class="fas fa-bell-slash fa-4x text-muted mb-3"></i>
+                <h5 class="text-muted">No Notifications</h5>
+                <p class="text-muted small">
+                    {% if current_type or current_status %}
+                        No notifications match your filters.
+                        <br>
+                        <a href="{% url 'notif:list' %}" class="btn btn-sm btn-outline-primary mt-2">
+                            <i class="fas fa-times me-1"></i> Clear Filters
+                        </a>
+                    {% else %}
+                        You're all caught up! No notifications at the moment.
+                    {% endif %}
+                </p>
+            </div>
+        {% endif %}
+
+        <!-- Pagination -->
+        {% if is_paginated %}
+            <nav class="mt-4">
+                <ul class="pagination justify-content-center">
+                    {% if page_obj.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if current_type %}&type={{ current_type }}{% endif %}{% if current_status %}&status={{ current_status }}{% endif %}">
+                                <i class="fas fa-chevron-left"></i>
+                            </a>
+                        </li>
+                    {% endif %}
+                    {% for num in page_obj.paginator.page_range %}
+                        {% if num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                            <li class="page-item {% if num == page_obj.number %}active{% endif %}">
+                                <a class="page-link" href="?page={{ num }}{% if current_type %}&type={{ current_type }}{% endif %}{% if current_status %}&status={{ current_status }}{% endif %}">{{ num }}</a>
+                            </li>
+                        {% endif %}
+                    {% endfor %}
+                    {% if page_obj.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if current_type %}&type={{ current_type }}{% endif %}{% if current_status %}&status={{ current_status }}{% endif %}">
+                                <i class="fas fa-chevron-right"></i>
+                            </a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        {% endif %}
+    </div>
+</section>
+{% endblock %}

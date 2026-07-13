@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div style="padding: 2rem; text-align: center; background: var(--bg-card); border-radius: 24px;">
+    <h1 style="color: var(--text-primary);">Test Dark/Light Mode</h1>
+    <p style="color: var(--text-muted);">اگر این متن تغییر رنگ می‌دهد، تم کار می‌کند!</p>
+    <div style="display: flex; gap: 1rem; justify-content: center; margin-top: 1rem;">
+        <span style="background: var(--primary); color: white; padding: 8px 16px; border-radius: 8px;">Primary</span>
+        <span style="background: var(--bg-card-hover); color: var(--text-primary); padding: 8px 16px; border-radius: 8px; border: 1px solid var(--border-color);">Card</span>
+    </div>
+    <p style="margin-top: 2rem; color: var(--text-muted); font-size: 0.8rem;">
+        وضعیت فعلی: <strong id="themeStatus">لایت</strong>
+    </p>
+</div>
+
+<script>
+    const status = document.getElementById('themeStatus');
+    const isDark = document.documentElement.getAttribute('data-bs-theme') === 'dark';
+    status.textContent = isDark ? 'دارک' : 'لایت';
+</script>
+{% endblock %}

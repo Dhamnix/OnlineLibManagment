@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     'borrowing.apps.BorrowingConfig',
     'reviews.apps.ReviewsConfig',
     'dashboard.apps.DashboardConfig',
+    'notif.apps.NotifConfig',
 ]
 
 # Use the project user model from the first migration onward. This keeps role
