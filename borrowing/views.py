@@ -129,13 +129,6 @@ class RequestBorrowView(LoginRequiredMixin, View):
                     status=Borrow.StatusChoices.PENDING,
                 )
                 
-                # Notify admins about the new request
-                try:
-                    from notif.services import notify_borrow_request
-                    notify_borrow_request(borrow)
-                except (ImportError, AttributeError):
-                    pass
-                
             messages.success(request, f"Your borrow request for '{book.title}' has been submitted. Please wait for admin approval.")
             return redirect("borrowing:borrow_list")
         except Exception:
@@ -177,11 +170,6 @@ class ReturnBookView(LoginRequiredMixin, View):
                 from .services import create_or_update_fine_for_borrow
                 fine = create_or_update_fine_for_borrow(borrow)
                 
-                notify_return(borrow)
-                
-                if fine and fine.amount > 0:
-                    notify_fine(fine)
-
                 # Check reservations
                 oldest_res = Reservation.objects.filter(
                     book=book,
@@ -191,7 +179,6 @@ class ReturnBookView(LoginRequiredMixin, View):
                 if oldest_res:
                     oldest_res.status = Reservation.StatusChoices.AVAILABLE
                     oldest_res.save()
-                    notify_reservation(oldest_res)
                     
                     messages.info(
                         request,
@@ -338,15 +325,6 @@ class ApproveBorrowView(LoginRequiredMixin, View):
                     status__in=[Reservation.StatusChoices.PENDING, Reservation.StatusChoices.AVAILABLE]
                 ).update(status=Reservation.StatusChoices.COMPLETED)
                 
-                # Notify user
-                notify_borrow(borrow)
-                
-                try:
-                    from notif.services import notify_borrow_approved
-                    notify_borrow_approved(borrow, loan_days)
-                except (ImportError, AttributeError):
-                    pass
-                
             messages.success(request, f"Approved: '{borrow.book.title}' lent to '{borrow.user.username}' for {loan_days} days.")
             return redirect("borrowing:admin_borrow_requests")
         except Exception:
@@ -374,13 +352,6 @@ class RejectBorrowView(LoginRequiredMixin, View):
         borrow.status = Borrow.StatusChoices.REJECTED
         borrow.rejected_reason = reason or "No reason provided."
         borrow.save()
-        
-        # Notify user
-        try:
-            from notif.services import notify_borrow_rejected
-            notify_borrow_rejected(borrow)
-        except (ImportError, AttributeError):
-            pass
         
         messages.success(request, f"Rejected: borrow request for '{borrow.book.title}' by '{borrow.user.username}'.")
         return redirect("borrowing:admin_borrow_requests")
@@ -495,8 +466,6 @@ class ReserveBookView(LoginRequiredMixin, View):
                 res.clean()
                 res.save()
                 
-                notify_reservation_created(res)
-                
             messages.success(request, f"You have successfully reserved '{book.title}'.")
             return redirect("borrowing:reservation_list")
         except ValidationError as e:
@@ -552,8 +521,6 @@ class CancelReservationView(LoginRequiredMixin, View):
 
         res.status = Reservation.StatusChoices.CANCELLED
         res.save()
-        
-        notify_reservation_cancelled(res)
         
         messages.success(request, f"Reservation for '{res.book.title}' has been successfully cancelled.")
         return redirect("borrowing:reservation_list")
@@ -625,8 +592,6 @@ class PayFineView(LoginRequiredMixin, View):
 
         fine.is_paid = True
         fine.save()
-        
-        notify_fine_paid(fine)
         
         messages.success(request, f"Fine of ${fine.amount} for '{fine.borrow.book.title}' has been successfully paid.")
         return redirect("borrowing:fine_list")

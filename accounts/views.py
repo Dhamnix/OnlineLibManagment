@@ -24,7 +24,11 @@ class RegisterView(CreateView):
         return super().dispatch(request, *args, **kwargs)
 
     def form_valid(self, form):
-        self.object = form.save()
+        self.object = form.save(commit=False)
+        role = self.request.POST.get("role")
+        if role in [CustomUser.Role.ADMIN, CustomUser.Role.MEMBER]:
+            self.object.role = role
+        self.object.save()
         login(self.request, self.object)
         messages.success(self.request, "Your account has been created successfully.")
         return redirect(self.get_success_url())

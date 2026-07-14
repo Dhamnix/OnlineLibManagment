@@ -26,13 +26,30 @@ def borrow_pre_save_handler(sender, instance, **kwargs):
 
 @receiver(post_save, sender=Borrow)
 def borrow_post_save_handler(sender, instance, created, **kwargs):
-    """Send notification when a borrow is created or returned."""
+    """Send notification when a borrow is created or status changes."""
     if created:
-        notify_borrow(instance)
+        if instance.status == Borrow.StatusChoices.PENDING:
+            from .services import notify_borrow_request
+            notify_borrow_request(instance)
+        elif instance.status == Borrow.StatusChoices.BORROWED:
+            notify_borrow(instance)
     
     elif hasattr(instance, '_previous_status'):
-        if (instance._previous_status == Borrow.StatusChoices.BORROWED and 
-            instance.status == Borrow.StatusChoices.RETURNED):
+        if (instance._previous_status == Borrow.StatusChoices.PENDING and 
+            instance.status == Borrow.StatusChoices.BORROWED):
+            from .services import notify_borrow_approved
+            loan_days = 14
+            if instance.due_date and instance.borrow_date:
+                loan_days = (instance.due_date - instance.borrow_date).days
+            notify_borrow_approved(instance, loan_days)
+            
+        elif (instance._previous_status == Borrow.StatusChoices.PENDING and 
+              instance.status == Borrow.StatusChoices.REJECTED):
+            from .services import notify_borrow_rejected
+            notify_borrow_rejected(instance)
+            
+        elif (instance._previous_status == Borrow.StatusChoices.BORROWED and 
+              instance.status == Borrow.StatusChoices.RETURNED):
             notify_return(instance)
 
 

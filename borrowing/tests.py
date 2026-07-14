@@ -59,8 +59,8 @@ class BorrowingSystemTests(TestCase):
         self.history_url = reverse("borrowing:borrow_history")
         self.reservations_list_url = reverse("borrowing:reservation_list")
         self.fines_list_url = reverse("borrowing:fine_list")
-        self.borrow_stock_url = reverse("borrowing:borrow_book", kwargs={"book_id": self.book_in_stock.pk})
-        self.borrow_out_url = reverse("borrowing:borrow_book", kwargs={"book_id": self.book_out_of_stock.pk})
+        self.borrow_stock_url = reverse("borrowing:request_borrow", kwargs={"book_id": self.book_in_stock.pk})
+        self.borrow_out_url = reverse("borrowing:request_borrow", kwargs={"book_id": self.book_out_of_stock.pk})
         self.reserve_stock_url = reverse("borrowing:reserve_book", kwargs={"book_id": self.book_in_stock.pk})
         self.reserve_out_url = reverse("borrowing:reserve_book", kwargs={"book_id": self.book_out_of_stock.pk})
 
@@ -69,7 +69,15 @@ class BorrowingSystemTests(TestCase):
         self.client.post(self.borrow_stock_url)
         
         borrow = Borrow.objects.get(book=self.book_in_stock, user=self.member_user)
-        # Verify due date is default 14 days after borrow date
+        self.assertIsNone(borrow.due_date)
+        
+        # Approve as admin
+        self.client.login(username="admin_user", password="password123")
+        approve_url = reverse("borrowing:approve_borrow", kwargs={"pk": borrow.pk})
+        self.client.post(approve_url, {"loan_days": 14})
+        
+        borrow.refresh_from_db()
+        self.assertEqual(borrow.status, Borrow.StatusChoices.BORROWED)
         expected_due = borrow.borrow_date + timedelta(days=14)
         self.assertAlmostEqual(borrow.due_date, expected_due, delta=timedelta(seconds=2))
 
@@ -79,21 +87,31 @@ class BorrowingSystemTests(TestCase):
         # Verify initial count
         self.assertEqual(self.book_in_stock.available_copies, 2)
         
-        # Borrow book
+        # Borrow request (PENDING)
         response = self.client.post(self.borrow_stock_url)
         self.assertRedirects(response, self.list_url)
         
-        # Verify copy count decremented
+        # Verify copies not decremented yet
+        self.book_in_stock.refresh_from_db()
+        self.assertEqual(self.book_in_stock.available_copies, 2)
+        
+        borrow = Borrow.objects.get(book=self.book_in_stock, user=self.member_user)
+        self.assertEqual(borrow.status, Borrow.StatusChoices.PENDING)
+        
+        # Approve as admin
+        self.client.login(username="admin_user", password="password123")
+        approve_url = reverse("borrowing:approve_borrow", kwargs={"pk": borrow.pk})
+        response = self.client.post(approve_url, {"loan_days": 14})
+        self.assertRedirects(response, reverse("borrowing:admin_borrow_requests"))
+        
+        # Verify copy count decremented after approval
         self.book_in_stock.refresh_from_db()
         self.assertEqual(self.book_in_stock.available_copies, 1)
-        
-        # Verify Borrow object created with correct status
-        self.assertTrue(Borrow.objects.filter(book=self.book_in_stock, user=self.member_user, status=Borrow.StatusChoices.BORROWED).exists())
 
     def test_cannot_borrow_out_of_stock_book(self):
         self.client.login(username="member_user", password="password123")
         
-        # Attempt to borrow out of stock book
+        # Attempt to request borrow out of stock book
         response = self.client.post(self.borrow_out_url)
         self.assertRedirects(response, reverse("books:book_detail", kwargs={"pk": self.book_out_of_stock.pk}))
         
@@ -111,17 +129,26 @@ class BorrowingSystemTests(TestCase):
             user=self.member_user,
             book=self.book_in_stock,
             status=Borrow.StatusChoices.BORROWED,
+            borrow_date=timezone.now(),
             due_date=timezone.now() + timedelta(days=14)
         )
         self.book_in_stock.available_copies = 1
         self.book_in_stock.save()
         
+        # Non-admin user attempts to return -> forbidden / redirect to list
         self.client.login(username="member_user", password="password123")
         return_url = reverse("borrowing:return_book", kwargs={"pk": borrow.pk})
-        
-        # Return book
         response = self.client.post(return_url)
         self.assertRedirects(response, self.list_url)
+        
+        # Verify status is still borrowed
+        borrow.refresh_from_db()
+        self.assertEqual(borrow.status, Borrow.StatusChoices.BORROWED)
+        
+        # Admin user returns book
+        self.client.login(username="admin_user", password="password123")
+        response = self.client.post(return_url)
+        self.assertRedirects(response, reverse("borrowing:admin_borrow_list"))
         
         # Verify status is returned and return date is set
         borrow.refresh_from_db()
@@ -284,10 +311,11 @@ class BorrowingSystemTests(TestCase):
             user=self.admin_user,
             book=self.book_out_of_stock,
             status=Borrow.StatusChoices.BORROWED,
+            borrow_date=timezone.now(),
             due_date=timezone.now() + timedelta(days=14)
         )
         
-        # Log in and return book
+        # Log in as admin and return book
         self.client.login(username="admin_user", password="password123")
         return_url = reverse("borrowing:return_book", kwargs={"pk": borrow.pk})
         
@@ -295,7 +323,7 @@ class BorrowingSystemTests(TestCase):
         mail.outbox = []
         
         response = self.client.post(return_url)
-        self.assertRedirects(response, self.list_url)
+        self.assertRedirects(response, reverse("borrowing:admin_borrow_list"))
         
         # Verify oldest reservation is now AVAILABLE
         res_oldest.refresh_from_db()
@@ -323,11 +351,24 @@ class BorrowingSystemTests(TestCase):
         
         self.client.login(username="member_user", password="password123")
         
-        # Borrow book
+        # Request borrow book (creates PENDING)
         response = self.client.post(self.borrow_out_url)
         self.assertRedirects(response, self.list_url)
         
-        # Verify copies decremented
+        # Verify copies NOT decremented yet
+        self.book_out_of_stock.refresh_from_db()
+        self.assertEqual(self.book_out_of_stock.available_copies, 1)
+        
+        borrow = Borrow.objects.get(book=self.book_out_of_stock, user=self.member_user)
+        self.assertEqual(borrow.status, Borrow.StatusChoices.PENDING)
+        
+        # Approve as admin
+        self.client.login(username="admin_user", password="password123")
+        approve_url = reverse("borrowing:approve_borrow", kwargs={"pk": borrow.pk})
+        response = self.client.post(approve_url, {"loan_days": 14})
+        self.assertRedirects(response, reverse("borrowing:admin_borrow_requests"))
+        
+        # Verify copies decremented after approval
         self.book_out_of_stock.refresh_from_db()
         self.assertEqual(self.book_out_of_stock.available_copies, 0)
         
@@ -341,6 +382,7 @@ class BorrowingSystemTests(TestCase):
             user=self.member_user,
             book=self.book_in_stock,
             status=Borrow.StatusChoices.BORROWED,
+            borrow_date=timezone.now() - timedelta(days=19),
             due_date=timezone.now() - timedelta(days=5)
         )
         
@@ -353,6 +395,7 @@ class BorrowingSystemTests(TestCase):
             user=self.member_user,
             book=self.book_in_stock,
             status=Borrow.StatusChoices.BORROWED,
+            borrow_date=timezone.now(),
             due_date=timezone.now() + timedelta(days=5)
         )
         amount_active = calculate_fine_for_borrow(borrow_active)
@@ -364,17 +407,18 @@ class BorrowingSystemTests(TestCase):
             user=self.member_user,
             book=self.book_in_stock,
             status=Borrow.StatusChoices.BORROWED,
+            borrow_date=timezone.now() - timedelta(days=17),
             due_date=timezone.now() - timedelta(days=3)
         )
         self.book_in_stock.available_copies = 1
         self.book_in_stock.save()
 
-        # Log in and return book
-        self.client.login(username="member_user", password="password123")
+        # Log in as admin and return book
+        self.client.login(username="admin_user", password="password123")
         return_url = reverse("borrowing:return_book", kwargs={"pk": borrow.pk})
         
         response = self.client.post(return_url)
-        self.assertRedirects(response, self.list_url)
+        self.assertRedirects(response, reverse("borrowing:admin_borrow_list"))
 
         # Verify Fine was created with correct amount and is unpaid
         fine = Fine.objects.get(borrow=borrow)
