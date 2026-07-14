@@ -62,6 +62,7 @@
                             <th>Author</th>
                             <th>Genre</th>
                             <th>Year</th>
+                            <th>Rating</th>
                             <th>Copies</th>
                             <th>Available</th>
                             <th class="text-end">Actions</th>
@@ -80,6 +81,14 @@
                             <td>{{ book.author }}</td>
                             <td>{{ book.genre }}</td>
                             <td>{{ book.publish_year }}</td>
+                            <td>
+                                {% if book.average_rating %}
+                                    <span class="text-warning"><i class="fas fa-star me-1"></i></span>
+                                    <span class="fw-semibold">{{ book.average_rating|floatformat:1 }}</span>
+                                {% else %}
+                                    <span class="text-muted">—</span>
+                                {% endif %}
+                            </td>
                             <td>{{ book.total_copies }}</td>
                             <td>
                                 <span class="badge {% if book.available_copies > 0 %}bg-success{% else %}bg-danger{% endif %}">

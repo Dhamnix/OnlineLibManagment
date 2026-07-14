@@ -89,7 +89,7 @@ class AdminBookListView(LoginRequiredMixin, ListView):
         return super().dispatch(request, *args, **kwargs)
 
     def get_queryset(self):
-        queryset = Book.objects.all()
+        queryset = Book.objects.annotate(average_rating=Avg('reviews__rating'))
         search = self.request.GET.get("search", "").strip()
         author = self.request.GET.get("author", "").strip()
         genre = self.request.GET.get("genre", "").strip()
