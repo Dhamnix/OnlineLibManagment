@@ -632,3 +632,130 @@ class AdminUserViewDetail(LoginRequiredMixin, UserPassesTestMixin, View):
         """
         
         return HttpResponse(html)
+
+
+class AdminReportsView(LoginRequiredMixin, UserPassesTestMixin, TemplateView):
+    template_name = "dashboard/admin_reports.html"
+
+    def test_func(self):
+        user = self.request.user
+        return user.is_staff or user.is_superuser or getattr(user, "role", None) == "ADMIN"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        now = timezone.now()
+
+        # 1. Most Requested & 6. Approval/Success Rate
+        most_requested = (
+            Book.objects.annotate(
+                total_requests=Count('borrowings'),
+                approved_requests=Count('borrowings', filter=Q(borrowings__status__in=[Borrow.StatusChoices.BORROWED, Borrow.StatusChoices.RETURNED])),
+                rejected_requests=Count('borrowings', filter=Q(borrowings__status=Borrow.StatusChoices.REJECTED))
+            )
+            .filter(total_requests__gt=0)
+            .order_by('-total_requests')[:10]
+        )
+        
+        most_requested_list = []
+        for book in most_requested:
+            rate = (book.approved_requests / book.total_requests * 100) if book.total_requests > 0 else 0
+            most_requested_list.append({
+                'book': book,
+                'total_requests': book.total_requests,
+                'approved_requests': book.approved_requests,
+                'rejected_requests': book.rejected_requests,
+                'approval_rate': round(rate, 1)
+            })
+
+        # 2. Borrowed Count (Actual Borrowings)
+        most_borrowed = (
+            Book.objects.annotate(
+                borrow_count=Count('borrowings', filter=Q(borrowings__status__in=[Borrow.StatusChoices.BORROWED, Borrow.StatusChoices.RETURNED]))
+            )
+            .filter(borrow_count__gt=0)
+            .order_by('-borrow_count')[:10]
+        )
+
+        # 3. Popular Books by Time Filter
+        time_filter = self.request.GET.get('time_filter', 'month')
+        if time_filter == 'today':
+            start_date = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        elif time_filter == 'week':
+            start_date = now - timezone.timedelta(days=now.weekday())
+            start_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
+        elif time_filter == 'month':
+            start_date = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        elif time_filter == 'year':
+            start_date = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+        else:  # all
+            start_date = None
+
+        borrows_filter = Q(borrowings__status__in=[Borrow.StatusChoices.BORROWED, Borrow.StatusChoices.RETURNED])
+        if start_date:
+            borrows_filter &= Q(borrowings__request_date__gte=start_date)
+
+        popular_filtered = (
+            Book.objects.annotate(
+                count=Count('borrowings', filter=borrows_filter)
+            )
+            .filter(count__gt=0)
+            .order_by('-count')[:10]
+        )
+
+        # 4. Popularity Chart Data
+        chart_labels = [book.title for book in most_borrowed[:5]]
+        chart_data = [book.borrow_count for book in most_borrowed[:5]]
+
+        # 5. Longest Pending List
+        longest_pending = (
+            Book.objects.annotate(
+                pending_count=Count('borrowings', filter=Q(borrowings__status=Borrow.StatusChoices.PENDING))
+            )
+            .filter(pending_count__gt=0)
+            .order_by('-pending_count')[:10]
+        )
+
+        # 7. Total Borrow Days (Duration Book was Borrowed)
+        book_durations = {}
+        borrowings = Borrow.objects.filter(status__in=[Borrow.StatusChoices.BORROWED, Borrow.StatusChoices.RETURNED]).select_related('book')
+        for b in borrowings:
+            if b.book:
+                start = b.borrow_date or b.request_date
+                end = b.return_date or now
+                duration = (end - start).days
+                if duration < 0:
+                    duration = 0
+                book_durations[b.book] = book_durations.get(b.book, 0) + duration
+        
+        sorted_durations = sorted(book_durations.items(), key=lambda x: x[1], reverse=True)[:10]
+        borrow_days_list = [{'book': book, 'days': days} for book, days in sorted_durations]
+
+        # 8. Popular Authors
+        popular_authors = (
+            Borrow.objects.filter(status__in=[Borrow.StatusChoices.BORROWED, Borrow.StatusChoices.RETURNED])
+            .values('book__author')
+            .annotate(count=Count('id'))
+            .order_by('-count')[:10]
+        )
+
+        # 9. Popular Genres
+        popular_genres = (
+            Borrow.objects.filter(status__in=[Borrow.StatusChoices.BORROWED, Borrow.StatusChoices.RETURNED])
+            .values('book__genre')
+            .annotate(count=Count('id'))
+            .order_by('-count')[:10]
+        )
+
+        context.update({
+            'most_requested': most_requested_list,
+            'most_borrowed': most_borrowed,
+            'popular_filtered': popular_filtered,
+            'time_filter': time_filter,
+            'chart_labels': chart_labels,
+            'chart_data': chart_data,
+            'longest_pending': longest_pending,
+            'borrow_days': borrow_days_list,
+            'popular_authors': popular_authors,
+            'popular_genres': popular_genres,
+        })
+        return context

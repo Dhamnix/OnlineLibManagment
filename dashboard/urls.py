@@ -12,6 +12,7 @@ from .views import (
     AdminUserEditView,
     AdminUserUpdateView,
     AdminUserProfileView,  
+    AdminReportsView,
 )
 
 app_name = "dashboard"
@@ -29,4 +30,5 @@ urlpatterns = [
     path("admin/users/<int:pk>/profile/", AdminUserProfileView.as_view(), name="admin_user_profile"),  # مسیر جدید
     path("admin/users/<int:pk>/edit/", AdminUserEditView.as_view(), name="admin_user_edit"),
     path("admin/users/<int:pk>/update/", AdminUserUpdateView.as_view(), name="admin_user_update"),
+    path("admin/reports/", AdminReportsView.as_view(), name="admin_reports"),
 ]

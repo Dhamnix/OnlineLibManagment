@@ -1,0 +1,455 @@
+{% extends "dashboard/admin_base.html" %}
+{% load static %}
+
+{% block title %}Reports & Analytics | Admin Panel{% endblock %}
+
+{% block page_title %}Reports & Analytics{% endblock %}
+{% block page_subtitle %}Comprehensive library insights, usage statistics, and popularity metrics{% endblock %}
+
+{% block admin_content %}
+<div class="container-fluid px-0">
+
+    <!-- Row 1: Time Filtered Popularity & Chart -->
+    <div class="row g-4 mb-4">
+        <!-- 3. Popular Books by Time Filter -->
+        <div class="col-xl-6">
+            <div class="card h-100 border-0 shadow-sm" style="border-radius: 20px;">
+                <div class="card-header bg-transparent border-0 pt-4 px-4 d-flex justify-content-between align-items-center">
+                    <h5 class="fw-bold mb-0 text-slate-800">
+                        <i class="fas fa-calendar-alt text-primary me-2"></i> Popular Books
+                    </h5>
+                    <!-- Time Filter Dropdown -->
+                    <form method="get" id="timeFilterForm">
+                        <select name="time_filter" class="form-select form-select-sm border-0 bg-light fw-semibold text-primary" onchange="this.form.submit()" style="border-radius: 10px;">
+                            <option value="today" {% if time_filter == 'today' %}selected{% endif %}>Today</option>
+                            <option value="week" {% if time_filter == 'week' %}selected{% endif %}>This Week</option>
+                            <option value="month" {% if time_filter == 'month' %}selected{% endif %}>This Month</option>
+                            <option value="year" {% if time_filter == 'year' %}selected{% endif %}>This Year</option>
+                            <option value="all" {% if time_filter == 'all' %}selected{% endif %}>All Time</option>
+                        </select>
+                    </form>
+                </div>
+                <div class="card-body px-4 pb-4">
+                    <div class="table-responsive">
+                        <table class="table align-middle mb-0">
+                            <thead>
+                                <tr class="text-muted small">
+                                    <th class="border-0">Book</th>
+                                    <th class="border-0">Author</th>
+                                    <th class="border-0 text-end">Borrow Count</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for book in popular_filtered %}
+                                <tr>
+                                    <td class="border-0">
+                                        <div class="fw-semibold text-slate-700">{{ book.title }}</div>
+                                    </td>
+                                    <td class="border-0 text-muted small">{{ book.author }}</td>
+                                    <td class="border-0 text-end">
+                                        <span class="badge bg-primary-subtle text-primary fw-bold" style="border-radius: 8px; font-size: 0.85rem; padding: 6px 12px;">
+                                            {{ book.count }}
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="3" class="text-center py-4 text-muted border-0">
+                                        <i class="fas fa-info-circle me-1"></i> No books borrowed during this period.
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 4. Popularity Chart -->
+        <div class="col-xl-6">
+            <div class="card h-100 border-0 shadow-sm" style="border-radius: 20px;">
+                <div class="card-header bg-transparent border-0 pt-4 px-4">
+                    <h5 class="fw-bold mb-0 text-slate-800">
+                        <i class="fas fa-chart-bar text-success me-2"></i> Popularity Chart
+                    </h5>
+                </div>
+                <div class="card-body px-4 pb-4 d-flex flex-column justify-content-center">
+                    <div style="position: relative; height:280px; width:100%">
+                        <canvas id="popularityChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Row 2: Most Requested & Approval Rate (1 & 6) & Longest Queue (5) -->
+    <div class="row g-4 mb-4">
+        <!-- 1. Most Requested & 6. Approval Success Rate -->
+        <div class="col-xl-7">
+            <div class="card h-100 border-0 shadow-sm" style="border-radius: 20px;">
+                <div class="card-header bg-transparent border-0 pt-4 px-4">
+                    <h5 class="fw-bold mb-0 text-slate-800">
+                        <i class="fas fa-star text-warning me-2"></i> Most Requested & Approval Rate
+                    </h5>
+                </div>
+                <div class="card-body px-4 pb-4">
+                    <div class="table-responsive">
+                        <table class="table align-middle mb-0">
+                            <thead>
+                                <tr class="text-muted small">
+                                    <th class="border-0">Book</th>
+                                    <th class="border-0 text-center">Requests</th>
+                                    <th class="border-0 text-center">Approved</th>
+                                    <th class="border-0 text-center">Rejected</th>
+                                    <th class="border-0 text-end">Approval Rate</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in most_requested %}
+                                <tr>
+                                    <td class="border-0">
+                                        <div class="fw-semibold text-slate-700">{{ item.book.title }}</div>
+                                        <div class="text-muted small" style="font-size: 0.75rem;">by {{ item.book.author }}</div>
+                                    </td>
+                                    <td class="border-0 text-center fw-bold">{{ item.total_requests }}</td>
+                                    <td class="border-0 text-center text-success fw-semibold">{{ item.approved_requests }}</td>
+                                    <td class="border-0 text-center text-danger fw-semibold">{{ item.rejected_requests }}</td>
+                                    <td class="border-0 text-end">
+                                        <div class="d-inline-flex flex-column align-items-end">
+                                            <span class="fw-bold text-primary">{{ item.approval_rate }}%</span>
+                                            <!-- Progress mini-bar -->
+                                            <div class="progress mt-1" style="height: 4px; width: 60px;">
+                                                <div class="progress-bar bg-primary" role="progressbar" style="width: {{ item.approval_rate }}%"></div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="5" class="text-center py-4 text-muted border-0">
+                                        No request history found.
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 5. Longest Waiting / Pending Queue -->
+        <div class="col-xl-5">
+            <div class="card h-100 border-0 shadow-sm" style="border-radius: 20px;">
+                <div class="card-header bg-transparent border-0 pt-4 px-4">
+                    <h5 class="fw-bold mb-0 text-slate-800">
+                        <i class="fas fa-hourglass-half text-danger me-2"></i> Longest Waiting Queue
+                    </h5>
+                </div>
+                <div class="card-body px-4 pb-4">
+                    <div class="table-responsive">
+                        <table class="table align-middle mb-0">
+                            <thead>
+                                <tr class="text-muted small">
+                                    <th class="border-0">Book</th>
+                                    <th class="border-0 text-end">Pending Requests</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for book in longest_pending %}
+                                <tr>
+                                    <td class="border-0">
+                                        <div class="fw-semibold text-slate-700">{{ book.title }}</div>
+                                    </td>
+                                    <td class="border-0 text-end">
+                                        <span class="badge bg-danger-subtle text-danger fw-bold" style="border-radius: 8px; font-size: 0.85rem; padding: 6px 12px;">
+                                            {{ book.pending_count }} pending
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="2" class="text-center py-4 text-muted border-0">
+                                        <i class="fas fa-check-circle text-success me-1"></i> No pending requests!
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Row 3: Borrowed Count (2) & Total Borrow Days (7) -->
+    <div class="row g-4 mb-4">
+        <!-- 2. Borrowed Count (Actual Borrowings) -->
+        <div class="col-xl-6">
+            <div class="card h-100 border-0 shadow-sm" style="border-radius: 20px;">
+                <div class="card-header bg-transparent border-0 pt-4 px-4">
+                    <h5 class="fw-bold mb-0 text-slate-800">
+                        <i class="fas fa-hand-holding text-info me-2"></i> Borrowed Count
+                    </h5>
+                </div>
+                <div class="card-body px-4 pb-4">
+                    <div class="table-responsive">
+                        <table class="table align-middle mb-0">
+                            <thead>
+                                <tr class="text-muted small">
+                                    <th class="border-0">Book</th>
+                                    <th class="border-0 text-end">Borrowed Frequency</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for book in most_borrowed %}
+                                <tr>
+                                    <td class="border-0">
+                                        <div class="fw-semibold text-slate-700">{{ book.title }}</div>
+                                    </td>
+                                    <td class="border-0 text-end">
+                                        <span class="fw-bold text-slate-800">{{ book.borrow_count }} times</span>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="2" class="text-center py-4 text-muted border-0">
+                                        No borrowings recorded.
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 7. Total Borrow Days (Duration Book was Borrowed) -->
+        <div class="col-xl-6">
+            <div class="card h-100 border-0 shadow-sm" style="border-radius: 20px;">
+                <div class="card-header bg-transparent border-0 pt-4 px-4">
+                    <h5 class="fw-bold mb-0 text-slate-800">
+                        <i class="fas fa-clock text-secondary me-2"></i> Total Borrow Days
+                    </h5>
+                </div>
+                <div class="card-body px-4 pb-4">
+                    <div class="table-responsive">
+                        <table class="table align-middle mb-0">
+                            <thead>
+                                <tr class="text-muted small">
+                                    <th class="border-0">Book</th>
+                                    <th class="border-0 text-end">Total Duration</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in borrow_days %}
+                                <tr>
+                                    <td class="border-0">
+                                        <div class="fw-semibold text-slate-700">{{ item.book.title }}</div>
+                                    </td>
+                                    <td class="border-0 text-end">
+                                        <span class="badge bg-secondary-subtle text-secondary fw-bold" style="border-radius: 8px; font-size: 0.85rem; padding: 6px 12px;">
+                                            {{ item.days }} days
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="2" class="text-center py-4 text-muted border-0">
+                                        No duration data.
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Row 4: Popular Authors (8) & Popular Genres (9) -->
+    <div class="row g-4">
+        <!-- 8. Popular Authors -->
+        <div class="col-xl-6">
+            <div class="card h-100 border-0 shadow-sm" style="border-radius: 20px;">
+                <div class="card-header bg-transparent border-0 pt-4 px-4">
+                    <h5 class="fw-bold mb-0 text-slate-800">
+                        <i class="fas fa-user-edit text-purple me-2"></i> Popular Authors
+                    </h5>
+                </div>
+                <div class="card-body px-4 pb-4">
+                    <div class="table-responsive">
+                        <table class="table align-middle mb-0">
+                            <thead>
+                                <tr class="text-muted small">
+                                    <th class="border-0">Author</th>
+                                    <th class="border-0 text-end">Borrow Count</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in popular_authors %}
+                                <tr>
+                                    <td class="border-0">
+                                        <div class="fw-semibold text-slate-700">{{ item.book__author }}</div>
+                                    </td>
+                                    <td class="border-0 text-end">
+                                        <span class="badge bg-purple-subtle text-purple fw-bold" style="border-radius: 8px; font-size: 0.85rem; padding: 6px 12px; --bs-purple: #8b5cf6; --bs-purple-rgb: 139, 92, 246; background-color: rgba(139, 92, 246, 0.1); color: #8b5cf6;">
+                                            {{ item.count }} borrows
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="2" class="text-center py-4 text-muted border-0">
+                                        No author data.
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 9. Popular Genres -->
+        <div class="col-xl-6">
+            <div class="card h-100 border-0 shadow-sm" style="border-radius: 20px;">
+                <div class="card-header bg-transparent border-0 pt-4 px-4">
+                    <h5 class="fw-bold mb-0 text-slate-800">
+                        <i class="fas fa-tags text-teal me-2"></i> Popular Genres
+                    </h5>
+                </div>
+                <div class="card-body px-4 pb-4">
+                    <div class="table-responsive">
+                        <table class="table align-middle mb-0">
+                            <thead>
+                                <tr class="text-muted small">
+                                    <th class="border-0">Genre</th>
+                                    <th class="border-0 text-end">Borrow Count</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in popular_genres %}
+                                <tr>
+                                    <td class="border-0">
+                                        <span class="badge bg-teal-subtle text-teal fw-semibold" style="border-radius: 8px; font-size: 0.85rem; padding: 6px 12px; --bs-teal: #0d9488; background-color: rgba(13, 148, 136, 0.1); color: #0d9488;">
+                                            {{ item.book__genre }}
+                                        </span>
+                                    </td>
+                                    <td class="border-0 text-end">
+                                        <span class="fw-bold text-slate-800">{{ item.count }} borrows</span>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="2" class="text-center py-4 text-muted border-0">
+                                        No genre data.
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- Additional Styling for this page -->
+<style>
+    .text-slate-800 { color: #1e293b; }
+    .text-slate-700 { color: #334155; }
+    .bg-primary-subtle { background-color: rgba(99, 102, 241, 0.1); }
+    .bg-danger-subtle { background-color: rgba(239, 68, 68, 0.1); }
+    .bg-secondary-subtle { background-color: rgba(100, 116, 139, 0.1); }
+    .text-purple { color: #8b5cf6; }
+    .text-teal { color: #0d9488; }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Chart.js 4.4.0 -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const ctx = document.getElementById('popularityChart').getContext('2d');
+        
+        // Data parsed from Django Context
+        const labels = {{ chart_labels|safe }};
+        const data = {{ chart_data|safe }};
+
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Borrow Count',
+                    data: data,
+                    backgroundColor: [
+                        'rgba(99, 102, 241, 0.85)',   // primary
+                        'rgba(16, 185, 129, 0.85)',   // success
+                        'rgba(245, 158, 11, 0.85)',   // warning
+                        'rgba(13, 148, 136, 0.85)',   // teal
+                        'rgba(139, 92, 246, 0.85)'    // purple
+                    ],
+                    borderRadius: 12,
+                    borderWidth: 0,
+                    maxBarThickness: 35
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        padding: 12,
+                        backgroundColor: '#1e293b',
+                        titleColor: '#fff',
+                        bodyColor: '#e2e8f0',
+                        cornerRadius: 8,
+                        displayColors: false
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: {
+                            display: false
+                        },
+                        ticks: {
+                            color: '#64748b',
+                            font: {
+                                family: 'Inter',
+                                size: 11
+                            }
+                        }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        grid: {
+                            color: '#f1f5f9'
+                        },
+                        ticks: {
+                            color: '#64748b',
+                            font: {
+                                family: 'Inter',
+                                size: 11
+                            },
+                            precision: 0
+                        }
+                    }
+                }
+            }
+        });
+    });
+</script>
+{% endblock %}
