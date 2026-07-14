@@ -160,12 +160,9 @@
                             <td class="text-center">
                                 <div class="btn-group btn-group-sm">
                                     {% if not fine.is_paid %}
-                                        <form method="post" action="{% url 'borrowing:pay_fine' fine.pk %}" style="display:inline;">
-                                            {% csrf_token %}
-                                            <button type="submit" class="btn btn-success" title="Mark as Paid" onclick="return confirm('Pay this fine?')">
-                                                <i class="fas fa-check"></i>
-                                            </button>
-                                        </form>
+                                        <a href="{% url 'borrowing:pay_fine' fine.pk %}" class="btn btn-success" title="Mark as Paid">
+                                            <i class="fas fa-check"></i>
+                                        </a>
                                     {% endif %}
                                     <a href="{% url 'books:book_detail' fine.borrow.book.pk %}" class="btn btn-outline-secondary" target="_blank" title="View Book">
                                         <i class="fas fa-eye"></i>

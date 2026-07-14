@@ -390,13 +390,9 @@
                                         <i class="fas fa-check-circle"></i> Paid
                                     </span>
                                 {% else %}
-                                    <form method="post" action="{% url 'borrowing:pay_fine' fine.pk %}" class="d-inline">
-                                        {% csrf_token %}
-                                        <button type="submit" class="btn pay-btn" 
-                                                onclick="return confirm('Pay ${{ fine.amount }} for {{ fine.borrow.book.title }}?')">
-                                            <i class="fas fa-credit-card me-2"></i> Pay ${{ fine.amount|floatformat:2 }}
-                                        </button>
-                                    </form>
+                                    <a href="{% url 'borrowing:pay_fine' fine.pk %}" class="btn pay-btn text-white">
+                                        <i class="fas fa-credit-card me-2"></i> Pay ${{ fine.amount|floatformat:2 }}
+                                    </a>
                                 {% endif %}
                             </div>
                         </div>

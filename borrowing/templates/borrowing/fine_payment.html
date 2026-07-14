@@ -1,0 +1,223 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Pay Fine | OnlineLib{% endblock %}
+
+{% block extra_css %}
+<style>
+    .payment-container {
+        max-width: 600px;
+        margin: 0 auto;
+    }
+    
+    .checkout-card {
+        background: white;
+        border-radius: 32px;
+        border: none;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+        overflow: hidden;
+    }
+    
+    .checkout-header {
+        background: linear-gradient(135deg, var(--primary, #6366f1), #4f46e5);
+        color: white;
+        padding: 2.5rem 2rem;
+        text-align: center;
+        position: relative;
+    }
+    
+    .checkout-header::after {
+        content: '';
+        position: absolute;
+        bottom: -1px;
+        left: 0;
+        right: 0;
+        height: 24px;
+        background: white;
+        clip-path: ellipse(60% 100% at 50% 100%);
+    }
+
+    .checkout-icon {
+        width: 70px;
+        height: 70px;
+        background: rgba(255, 255, 255, 0.2);
+        backdrop-filter: blur(10px);
+        border-radius: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2rem;
+        margin: 0 auto 1rem;
+        animation: float 3s ease-in-out infinite;
+    }
+
+    @keyframes float {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-8px); }
+    }
+
+    .checkout-body {
+        padding: 2.5rem 2rem;
+    }
+
+    .amount-display {
+        text-align: center;
+        margin-bottom: 2rem;
+    }
+
+    .amount-label {
+        font-size: 0.875rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: #64748b;
+        font-weight: 600;
+    }
+
+    .amount-value {
+        font-size: 3rem;
+        font-weight: 800;
+        color: #0f172a;
+        margin-top: 0.25rem;
+    }
+
+    .detail-list {
+        background: #f8fafc;
+        border-radius: 20px;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .detail-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 0.75rem 0;
+        border-bottom: 1px dashed #e2e8f0;
+    }
+
+    .detail-item:last-child {
+        border-bottom: none;
+        padding-bottom: 0;
+    }
+
+    .detail-label {
+        color: #64748b;
+        font-weight: 500;
+    }
+
+    .detail-val {
+        color: #0f172a;
+        font-weight: 600;
+        text-align: right;
+    }
+
+    .btn-pay-confirm {
+        background: linear-gradient(135deg, #10b981, #059669);
+        border: none;
+        border-radius: 40px;
+        padding: 12px 30px;
+        font-weight: 700;
+        color: white;
+        width: 100%;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 15px rgba(16, 185, 129, 0.2);
+    }
+
+    .btn-pay-confirm:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(16, 185, 129, 0.3);
+    }
+
+    .payment-options-hint {
+        background: #eff6ff;
+        border-radius: 16px;
+        padding: 1rem;
+        font-size: 0.875rem;
+        color: #1d4ed8;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-top: 1.5rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="py-5 bg-light min-vh-100 d-flex align-items-center">
+    <div class="container">
+        <div class="payment-container">
+            <div class="checkout-card">
+                
+                <!-- Header -->
+                <div class="checkout-header">
+                    <div class="checkout-icon">
+                        <i class="fas fa-wallet"></i>
+                    </div>
+                    <h3 class="fw-bold mb-0">Fine Checkout</h3>
+                    <p class="text-white-50 small mt-1">Review and pay your library fine</p>
+                </div>
+                
+                <!-- Body -->
+                <div class="checkout-body">
+                    
+                    <!-- Amount -->
+                    <div class="amount-display">
+                        <div class="amount-label">Amount Due</div>
+                        <div class="amount-value">${{ fine.amount|floatformat:2 }}</div>
+                    </div>
+
+                    <!-- Details -->
+                    <div class="detail-list">
+                        <div class="detail-item">
+                            <span class="detail-label">Book Title</span>
+                            <span class="detail-val">{{ fine.borrow.book.title }}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Author</span>
+                            <span class="detail-val">{{ fine.borrow.book.author }}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Borrower</span>
+                            <span class="detail-val">{{ fine.user.username }}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Overdue Since</span>
+                            <span class="detail-val text-danger">{{ fine.borrow.due_date|date:"M d, Y" }}</span>
+                        </div>
+                    </div>
+
+                    <!-- Confirmation Form -->
+                    <form method="post">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-pay-confirm">
+                            <i class="fas fa-check-circle me-2"></i> Confirm Payment
+                        </button>
+                    </form>
+
+                    <!-- Hint / Future Expansion Placeholder -->
+                    <div class="payment-options-hint">
+                        <i class="fas fa-info-circle fs-5"></i>
+                        <div>
+                            <strong>Note:</strong> Multi-method gateway integrations (e.g. Credit Card, PayPal, Local Banks) will be available in future releases.
+                        </div>
+                    </div>
+
+                    <!-- Back Link -->
+                    <div class="text-center mt-4">
+                        {% if request.user.role == 'ADMIN' or request.user.is_superuser %}
+                            <a href="{% url 'borrowing:admin_fine_list' %}" class="text-muted text-decoration-none small">
+                                <i class="fas fa-arrow-left me-1"></i> Back to Manage Fines
+                            </a>
+                        {% else %}
+                            <a href="{% url 'borrowing:fine_list' %}" class="text-muted text-decoration-none small">
+                                <i class="fas fa-arrow-left me-1"></i> Back to Fines
+                            </a>
+                        {% endif %}
+                    </div>
+                    
+                </div>
+                
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

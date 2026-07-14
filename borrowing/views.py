@@ -578,9 +578,8 @@ class FineListView(LoginRequiredMixin, ListView):
 
 
 class PayFineView(LoginRequiredMixin, View):
-    def post(self, request, pk):
+    def get(self, request, pk):
         user = request.user
-        
         if user.is_superuser or getattr(user, "role", None) == "ADMIN":
             fine = get_object_or_404(Fine, pk=pk)
         else:
@@ -590,10 +589,27 @@ class PayFineView(LoginRequiredMixin, View):
             messages.warning(request, "This fine has already been paid.")
             return redirect("borrowing:fine_list")
 
+        return render(request, "borrowing/fine_payment.html", {"fine": fine})
+
+    def post(self, request, pk):
+        user = request.user
+        if user.is_superuser or getattr(user, "role", None) == "ADMIN":
+            fine = get_object_or_404(Fine, pk=pk)
+        else:
+            fine = get_object_or_404(Fine, pk=pk, user=user)
+
+        if fine.is_paid:
+            messages.warning(request, "This fine has already been paid.")
+            if user.is_superuser or getattr(user, "role", None) == "ADMIN":
+                return redirect("borrowing:admin_fine_list")
+            return redirect("borrowing:fine_list")
+
         fine.is_paid = True
         fine.save()
         
         messages.success(request, f"Fine of ${fine.amount} for '{fine.borrow.book.title}' has been successfully paid.")
+        if user.is_superuser or getattr(user, "role", None) == "ADMIN":
+            return redirect("borrowing:admin_fine_list")
         return redirect("borrowing:fine_list")
     
 
