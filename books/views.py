@@ -1,6 +1,6 @@
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
-from django.db.models import Q
+from django.db.models import Q, Avg
 from django.shortcuts import get_object_or_404
 from django.urls import reverse_lazy
 from django.views.generic import CreateView, DeleteView, DetailView, ListView, UpdateView
@@ -17,7 +17,7 @@ class BookListView(ListView):
     paginate_by = 10
 
     def get_queryset(self):
-        queryset = Book.objects.all()
+        queryset = Book.objects.annotate(average_rating=Avg('reviews__rating'))
         search = self.request.GET.get("search", "").strip()
         author = self.request.GET.get("author", "").strip()
         genre = self.request.GET.get("genre", "").strip()
