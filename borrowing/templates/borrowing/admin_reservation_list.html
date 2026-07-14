@@ -157,7 +157,7 @@
                                         </form>
                                     {% endif %}
                                     {% if reservation.status == 'AVAILABLE' %}
-                                        <a href="{% url 'borrowing:borrow_book' reservation.book.pk %}" class="btn btn-success" title="Borrow Now">
+                                        <a href="{% url 'borrowing:request_borrow' reservation.book.pk %}" class="btn btn-success" title="Request Borrow">
                                             <i class="fas fa-hand-holding-heart"></i>
                                         </a>
                                     {% endif %}

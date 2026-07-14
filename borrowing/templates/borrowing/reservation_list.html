@@ -480,8 +480,8 @@
                             
                             <div class="action-buttons-res">
                                 {% if res.status == 'AVAILABLE' %}
-                                    <a href="{% url 'borrowing:borrow_book' res.book.pk %}" class="btn-borrow">
-                                        <i class="fas fa-hand-holding-heart me-1"></i> Borrow Now
+                                    <a href="{% url 'borrowing:request_borrow' res.book.pk %}" class="btn-borrow">
+                                        <i class="fas fa-hand-holding-heart me-1"></i> Request to Borrow
                                     </a>
                                     <form method="post" action="{% url 'borrowing:cancel_reservation' res.pk %}" class="d-inline">
                                         {% csrf_token %}

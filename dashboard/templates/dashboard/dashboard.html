@@ -505,10 +505,10 @@
                                             <span class="reservation-status available">
                                                 <i class="fas fa-check-circle"></i> Available!
                                             </span>
-                                            <a href="{% url 'borrowing:borrow_book' res.book.pk %}" 
+                                            <a href="{% url 'borrowing:request_borrow' res.book.pk %}" 
                                                class="btn btn-sm btn-success mt-2 mt-sm-0 ms-sm-2">
-                                                Borrow Now
-                                            </a>
+                                                 Request to Borrow
+                                             </a>
                                         {% endif %}
                                     </div>
                                 </div>
