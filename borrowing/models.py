@@ -9,8 +9,10 @@ from books.models import Book
 
 class Borrow(models.Model):
     class StatusChoices(models.TextChoices):
+        PENDING = "PENDING", "Pending Request"
         BORROWED = "BORROWED", "Borrowed"
         RETURNED = "RETURNED", "Returned"
+        REJECTED = "REJECTED", "Rejected"
 
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -22,25 +24,35 @@ class Borrow(models.Model):
         on_delete=models.CASCADE,
         related_name="borrowings",
     )
-    borrow_date = models.DateTimeField(default=timezone.now)
-    due_date = models.DateTimeField()
+    request_date = models.DateTimeField(default=timezone.now)
+    borrow_date = models.DateTimeField(null=True, blank=True)
+    due_date = models.DateTimeField(null=True, blank=True)
     return_date = models.DateTimeField(null=True, blank=True)
     status = models.CharField(
         max_length=10,
         choices=StatusChoices.choices,
-        default=StatusChoices.BORROWED,
+        default=StatusChoices.PENDING,
     )
+    approved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="approved_borrowings",
+    )
+    rejected_reason = models.TextField(blank=True, default="")
 
     class Meta:
-        ordering = ["-borrow_date"]
+        ordering = ["-request_date"]
 
     def __str__(self):
-        return f"{self.user.username} borrowed {self.book.title}"
+        return f"{self.user.username} - {self.book.title} ({self.get_status_display()})"
 
     def save(self, *args, **kwargs):
-        if not self.due_date:
-            # Default due date to 14 days from borrow date
-            self.due_date = self.borrow_date + timedelta(days=14)
+        # Only auto-set due_date when status is BORROWED and due_date is not set
+        if self.status == self.StatusChoices.BORROWED and self.borrow_date and not self.due_date:
+            days = getattr(settings, 'BORROWING_DAYS', 14)
+            self.due_date = self.borrow_date + timedelta(days=days)
         super().save(*args, **kwargs)
 
 

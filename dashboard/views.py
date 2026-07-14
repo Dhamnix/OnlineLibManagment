@@ -107,6 +107,12 @@ class AdminDashboardView(LoginRequiredMixin, UserPassesTestMixin, TemplateView):
         overdue_qs = active_borrowings_qs.filter(due_date__lt=now).order_by("due_date")
         overdue_count = overdue_qs.count()
 
+        # Pending borrow requests
+        pending_requests_qs = Borrow.objects.filter(
+            status=Borrow.StatusChoices.PENDING
+        ).select_related("user", "book").order_by("request_date")
+        pending_requests_count = pending_requests_qs.count()
+
         popular_books = (
             Book.objects.annotate(borrow_count=Count("borrowings"))
             .order_by("-borrow_count", "title")[:10]
@@ -121,6 +127,8 @@ class AdminDashboardView(LoginRequiredMixin, UserPassesTestMixin, TemplateView):
                 "active_borrowings_count": active_borrowings,
                 "overdue_count": overdue_count,
                 "overdue_list": overdue_qs,
+                "pending_requests_count": pending_requests_count,
+                "pending_requests": pending_requests_qs[:5],
                 "popular_books": popular_books,
                 "recent_users": recent_users,
             }

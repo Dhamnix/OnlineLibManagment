@@ -7,20 +7,38 @@
             <div class="col-12 col-md-8 col-lg-6">
                 <div class="card border-0 shadow-sm">
                     <div class="card-body p-4 p-md-5">
-                        <h1 class="h3 mb-3">Confirm Borrow</h1>
+                        <h1 class="h3 mb-3">
+                            <i class="fas fa-paper-plane me-2" style="color: #6366f1;"></i>
+                            Request to Borrow
+                        </h1>
                         
                         <div class="mb-4">
-                            <p class="text-muted mb-1">You are about to borrow:</p>
+                            <p class="text-muted mb-1">You are requesting to borrow:</p>
                             <h2 class="h5 fw-bold text-dark mb-1">{{ book.title }}</h2>
                             <p class="text-muted">by {{ book.author }}</p>
                         </div>
 
                         <div class="alert alert-info border-0 bg-info-subtle mb-4">
-                            <div class="d-flex align-items-center">
+                            <div class="d-flex align-items-start gap-2">
+                                <i class="fas fa-info-circle mt-1 text-info-emphasis"></i>
                                 <div>
-                                    <div class="fw-semibold text-info-emphasis">Due Date Information</div>
+                                    <div class="fw-semibold text-info-emphasis">How it works</div>
                                     <div class="small text-info-emphasis">
-                                        This book must be returned by <strong>{{ due_date|date:"F j, Y" }}</strong> (14 days lending period).
+                                        Your request will be sent to a librarian for review. 
+                                        Once approved, the loan period will be set by the librarian 
+                                        and you'll be notified.
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="alert alert-warning border-0 bg-warning-subtle mb-4">
+                            <div class="d-flex align-items-start gap-2">
+                                <i class="fas fa-clock mt-1 text-warning-emphasis"></i>
+                                <div>
+                                    <div class="fw-semibold text-warning-emphasis">Available Copies</div>
+                                    <div class="small text-warning-emphasis">
+                                        {{ book.available_copies }} of {{ book.total_copies }} copies currently available.
                                     </div>
                                 </div>
                             </div>
@@ -29,7 +47,9 @@
                         <form method="post">
                             {% csrf_token %}
                             <div class="d-flex flex-column flex-sm-row gap-2">
-                                <button type="submit" class="btn btn-primary">Confirm Borrow</button>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-paper-plane me-1"></i> Submit Request
+                                </button>
                                 <a href="{% url 'books:book_detail' book.pk %}" class="btn btn-outline-secondary">Cancel</a>
                             </div>
                         </form>

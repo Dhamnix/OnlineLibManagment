@@ -221,3 +221,56 @@ def notify_reservation_cancelled(reservation):
         ),
         link="/borrowing/reservations/"
     )
+
+
+def notify_borrow_request(borrow):
+    """Send notification to admins when a user submits a borrow request."""
+    from django.conf import settings
+    User = __import__('django.contrib.auth', fromlist=['get_user_model']).get_user_model()
+    admins = User.objects.filter(role='ADMIN')
+    
+    for admin_user in admins:
+        create_notification(
+            user=admin_user,
+            notification_type=Notification.Type.BORROW,
+            title=f"📋 New Borrow Request: {borrow.book.title}",
+            message=(
+                f"User '{borrow.user.username}' has requested to borrow '{borrow.book.title}' "
+                f"by {borrow.book.author}.\n"
+                f"📅 Request Date: {borrow.request_date.strftime('%Y-%m-%d %H:%M')}\n"
+                f"Please review and approve or reject this request."
+            ),
+            link="/borrowing/admin/requests/"
+        )
+
+
+def notify_borrow_approved(borrow, loan_days):
+    """Send notification to user when their borrow request is approved."""
+    create_notification(
+        user=borrow.user,
+        notification_type=Notification.Type.BORROW,
+        title=f"✅ Borrow Request Approved: {borrow.book.title}",
+        message=(
+            f"Your borrow request for '{borrow.book.title}' has been APPROVED!\n"
+            f"📅 Borrow Date: {borrow.borrow_date.strftime('%Y-%m-%d')}\n"
+            f"📅 Due Date: {borrow.due_date.strftime('%Y-%m-%d')}\n"
+            f"📆 Loan Period: {loan_days} days\n"
+            f"Please return the book on or before the due date to avoid fines."
+        ),
+        link="/borrowing/"
+    )
+
+
+def notify_borrow_rejected(borrow):
+    """Send notification to user when their borrow request is rejected."""
+    create_notification(
+        user=borrow.user,
+        notification_type=Notification.Type.BORROW,
+        title=f"❌ Borrow Request Rejected: {borrow.book.title}",
+        message=(
+            f"Your borrow request for '{borrow.book.title}' has been rejected.\n"
+            f"📝 Reason: {borrow.rejected_reason}\n"
+            f"You can contact the library for more information."
+        ),
+        link="/borrowing/"
+    )
