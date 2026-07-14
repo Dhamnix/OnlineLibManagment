@@ -14,7 +14,7 @@ class BookDeleteViewTests(TestCase):
             author="John Doe",
             genre="Technology",
             publish_year=2024,
-            isbn="123-456-789-0",
+            isbn="1234567890123",
             total_copies=5,
             available_copies=5,
         )

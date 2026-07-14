@@ -1,4 +1,5 @@
 from django.core.exceptions import ValidationError
+from django.core.validators import RegexValidator
 from django.db import models
 
 
@@ -11,7 +12,17 @@ class Book(models.Model):
 
     # Publishing and identification metadata.
     publish_year = models.PositiveIntegerField()
-    isbn = models.CharField(max_length=20, unique=True)
+    isbn = models.CharField(
+        max_length=13,
+        unique=True,
+        validators=[
+            RegexValidator(
+                regex=r'^\d{13}$',
+                message="ISBN must be exactly 13 digits.",
+                code="invalid_isbn"
+            )
+        ]
+    )
 
     # Inventory fields. available_copies is kept separate so borrowing can
     # decrement it without changing the library's owned copy count.

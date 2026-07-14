@@ -40,7 +40,7 @@ class BorrowingSystemTests(TestCase):
             author="Erich Gamma",
             genre="Computer Science",
             publish_year=1994,
-            isbn="978-0201633610",
+            isbn="9780201633610",
             total_copies=2,
             available_copies=2,
         )
@@ -49,7 +49,7 @@ class BorrowingSystemTests(TestCase):
             author="Martin Fowler",
             genre="Computer Science",
             publish_year=1999,
-            isbn="978-0201485677",
+            isbn="9780201485677",
             total_copies=1,
             available_copies=0,
         )
