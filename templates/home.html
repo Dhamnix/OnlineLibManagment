@@ -912,7 +912,8 @@
                     </h1>
 
                     <p class="hero-subtitle">
-                        Your smart library companion
+                        Your smart library companion with AI-powered recommendations, 
+                        seamless borrowing, and a world of knowledge at your fingertips.
                     </p>
 
                     <div class="dev-credit">
@@ -958,20 +959,28 @@
                 <div class="book-carousel-3d">
                     <div class="book-carousel-ring"></div>
                     <div class="book-carousel-track" id="carouselTrack">
-                        {% for i in "12345678"|make_list %}
+                        {% for book in popular_books %}
                         <div class="book-carousel-item">
-                            {% with book=popular_books|slice:forloop.counter0|first %}
-                                {% if book.cover_image %}
+                            {% if book.cover_image %}
                                 <img src="{{ book.cover_image.url }}" alt="{{ book.title }}">
-                                {% else %}
+                            {% else %}
                                 <div style="width:100%;height:100%;background:linear-gradient(135deg,{% cycle '#6366f1,#4f46e5' '#10b981,#059669' '#f59e0b,#d97706' '#ef4444,#dc2626' '#8b5cf6,#7c3aed' '#ec4899,#db2777' '#06b6d4,#0891b2' '#f472b6,#ec4899' %});display:flex;align-items:center;justify-content:center;color:white;font-size:3rem;">
                                     <i class="fas fa-book"></i>
                                 </div>
-                                {% endif %}
-                                <div class="book-glow"></div>
-                                <span class="book-number">#{{ forloop.counter }}</span>
-                            {% endwith %}
+                            {% endif %}
+                            <div class="book-glow"></div>
+                            <span class="book-number">#{{ forloop.counter }}</span>
                         </div>
+                        {% empty %}
+                        {% for i in "12345678"|make_list %}
+                        <div class="book-carousel-item">
+                            <div style="width:100%;height:100%;background:linear-gradient(135deg,{% cycle '#6366f1,#4f46e5' '#10b981,#059669' '#f59e0b,#d97706' '#ef4444,#dc2626' '#8b5cf6,#7c3aed' '#ec4899,#db2777' '#06b6d4,#0891b2' '#f472b6,#ec4899' %});display:flex;align-items:center;justify-content:center;color:white;font-size:3rem;">
+                                <i class="fas fa-book"></i>
+                            </div>
+                            <div class="book-glow"></div>
+                            <span class="book-number">#{{ forloop.counter }}</span>
+                        </div>
+                        {% endfor %}
                         {% endfor %}
                     </div>
                 </div>
