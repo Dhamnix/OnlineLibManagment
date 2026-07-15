@@ -5,9 +5,6 @@
 
 {% block extra_css %}
 <style>
-    /* ============================================
-       HERO SECTION
-       ============================================ */
     .hero-section {
         position: relative;
         min-height: 90vh;
@@ -34,9 +31,6 @@
         100% { transform: translate(-10%, -10%) scale(1.2); opacity: 1; }
     }
 
-    /* ============================================
-       HERO CONTENT - LEFT SIDE
-       ============================================ */
     .hero-content {
         position: relative;
         z-index: 2;
@@ -101,7 +95,6 @@
         animation: fadeInUp 1s ease-out;
     }
 
-    /* Developer Credit */
     .dev-credit {
         display: flex;
         align-items: center;
@@ -245,9 +238,6 @@
         }
     }
 
-    /* ============================================
-       3D BOOK CAROUSEL - RIGHT SIDE
-       ============================================ */
     .book-carousel-3d {
         position: relative;
         width: 100%;
@@ -284,16 +274,8 @@
         transition: all 0.3s ease;
         transform-style: preserve-3d;
         backface-visibility: visible;
-        cursor: pointer;
+        cursor: default;
         border: 1px solid rgba(255, 255, 255, 0.08);
-    }
-
-    .book-carousel-item:hover {
-        transform: translateZ(20px) scale(1.05) !important;
-        box-shadow: 
-            0 30px 60px rgba(99, 102, 241, 0.3),
-            0 0 40px rgba(99, 102, 241, 0.1);
-        z-index: 10;
     }
 
     .book-carousel-item img {
@@ -301,10 +283,6 @@
         height: 100%;
         object-fit: cover;
         transition: transform 0.5s ease;
-    }
-
-    .book-carousel-item:hover img {
-        transform: scale(1.08);
     }
 
     .book-carousel-item .book-glow {
@@ -335,7 +313,6 @@
         backdrop-filter: blur(5px);
     }
 
-    /* Book positions in 3D space */
     .book-carousel-item:nth-child(1) { transform: rotateY(0deg) translateZ(280px); }
     .book-carousel-item:nth-child(2) { transform: rotateY(45deg) translateZ(280px); }
     .book-carousel-item:nth-child(3) { transform: rotateY(90deg) translateZ(280px); }
@@ -345,7 +322,6 @@
     .book-carousel-item:nth-child(7) { transform: rotateY(270deg) translateZ(280px); }
     .book-carousel-item:nth-child(8) { transform: rotateY(315deg) translateZ(280px); }
 
-    /* Glow ring around carousel */
     .book-carousel-ring {
         position: absolute;
         width: 560px;
@@ -392,7 +368,6 @@
         100% { transform: scale(1.05); opacity: 1; }
     }
 
-    /* Floating particles */
     .particle {
         position: absolute;
         width: 4px;
@@ -417,9 +392,6 @@
         75% { transform: translate(30px, -20px) scale(1.2); opacity: 0.7; }
     }
 
-    /* ============================================
-       FEATURES SECTION
-       ============================================ */
     .features-section {
         padding: 5rem 0;
         background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
@@ -538,9 +510,6 @@
         color: #4f46e5;
     }
 
-    /* ============================================
-       POPULAR BOOKS
-       ============================================ */
     .popular-section {
         padding: 5rem 0;
         background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
@@ -682,9 +651,6 @@
         color: white;
     }
 
-    /* ============================================
-       CTA SECTION
-       ============================================ */
     .cta-section {
         padding: 5rem 0;
         background: linear-gradient(135deg, #0f0f1e 0%, #1a1a2e 50%, #16213e 100%);
@@ -745,9 +711,6 @@
         color: white;
     }
 
-    /* ============================================
-       REVEAL ANIMATION
-       ============================================ */
     .reveal {
         opacity: 0;
         transform: translateY(40px);
@@ -764,9 +727,6 @@
     .reveal-delay-3 { transition-delay: 0.3s; }
     .reveal-delay-4 { transition-delay: 0.4s; }
 
-    /* ============================================
-       RESPONSIVE
-       ============================================ */
     @media (max-width: 992px) {
         .hero-title {
             font-size: 3rem;
@@ -928,11 +888,7 @@
 
 {% block content %}
 
-<!-- ============================================ -->
-<!-- HERO SECTION - متن چپ | انیمیشن راست -->
-<!-- ============================================ -->
 <section class="hero-section">
-    <!-- Floating Particles -->
     <div class="particle"></div>
     <div class="particle"></div>
     <div class="particle"></div>
@@ -943,7 +899,6 @@
     <div class="container">
         <div class="row align-items-center">
             
-            <!-- LEFT SIDE: Hero Content (متن‌ها) -->
             <div class="col-lg-6">
                 <div class="hero-content">
                     <div class="hero-badge">
@@ -960,7 +915,6 @@
                         Your smart library companion
                     </p>
 
-                    <!-- Developer Credit -->
                     <div class="dev-credit">
                         <span>✨ Developed with</span>
                         <span class="heart-icon">❤️</span>
@@ -1000,12 +954,10 @@
                 </div>
             </div>
 
-            <!-- RIGHT SIDE: 3D Book Carousel (انیمیشن چرخش) -->
             <div class="col-lg-6">
                 <div class="book-carousel-3d">
                     <div class="book-carousel-ring"></div>
                     <div class="book-carousel-track" id="carouselTrack">
-                        <!-- 8 Books in 3D Carousel -->
                         {% for i in "12345678"|make_list %}
                         <div class="book-carousel-item">
                             {% with book=popular_books|slice:forloop.counter0|first %}
@@ -1029,9 +981,6 @@
     </div>
 </section>
 
-<!-- ============================================ -->
-<!-- FEATURES SECTION -->
-<!-- ============================================ -->
 <section class="features-section">
     <div class="container">
         <div class="section-header reveal">
@@ -1124,9 +1073,6 @@
     </div>
 </section>
 
-<!-- ============================================ -->
-<!-- POPULAR BOOKS SECTION -->
-<!-- ============================================ -->
 <section class="popular-section">
     <div class="container">
         <div class="section-header reveal">
@@ -1198,9 +1144,6 @@
     </div>
 </section>
 
-<!-- ============================================ -->
-<!-- CTA SECTION -->
-<!-- ============================================ -->
 {% if not user.is_authenticated %}
 <section class="cta-section">
     <div class="container">
@@ -1221,9 +1164,6 @@
 
 {% block extra_js %}
 <script>
-    // ============================================
-    // Scroll Reveal Animation
-    // ============================================
     const revealElements = document.querySelectorAll('.reveal');
 
     const revealObserver = new IntersectionObserver((entries) => {
@@ -1239,9 +1179,6 @@
 
     revealElements.forEach(el => revealObserver.observe(el));
 
-    // ============================================
-    // Animated Counter for Hero Stats
-    // ============================================
     function animateCounter(element, target, duration = 2000) {
         let start = 0;
         const increment = target / (duration / 16);
@@ -1282,9 +1219,6 @@
         heroObserver.observe(heroSection);
     }
 
-    // ============================================
-    // Mouse Parallax for Carousel
-    // ============================================
     const carousel = document.getElementById('carouselTrack');
     const carouselContainer = document.querySelector('.book-carousel-3d');
 
@@ -1301,25 +1235,6 @@
             carousel.style.transform = 'rotateY(0deg) rotateX(0deg)';
         });
     }
-
-    // ============================================
-    // Hover pause for carousel
-    // ============================================
-    const carouselItems = document.querySelectorAll('.book-carousel-item');
-    const track = document.getElementById('carouselTrack');
-
-    carouselItems.forEach(item => {
-        item.addEventListener('mouseenter', () => {
-            if (track) {
-                track.style.animationPlayState = 'paused';
-            }
-        });
-        item.addEventListener('mouseleave', () => {
-            if (track) {
-                track.style.animationPlayState = 'running';
-            }
-        });
-    });
 
     console.log('🚀 Welcome to OnlineLib - Smart Library Management System');
     console.log('📚 Developed with ❤️ by Dhamnix & Ehsan');
