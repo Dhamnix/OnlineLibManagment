@@ -759,3 +759,44 @@ class AdminReportsView(LoginRequiredMixin, UserPassesTestMixin, TemplateView):
             'popular_genres': popular_genres,
         })
         return context
+
+from .forms import LibrarySettingsForm
+from .models import LibrarySettings
+
+from .forms import LibrarySettingsForm
+from .models import LibrarySettings
+
+
+class AdminSettingsView(LoginRequiredMixin, UserPassesTestMixin, View):
+    """Admin settings page"""
+    template_name = "dashboard/admin_settings.html"
+    
+    def test_func(self):
+        user = self.request.user
+        return user.is_staff or user.is_superuser or getattr(user, "role", None) == "ADMIN"
+    
+    def get(self, request):
+        settings = LibrarySettings.get_settings()
+        form = LibrarySettingsForm(instance=settings)
+        return render(request, self.template_name, {
+            'form': form,
+            'settings': settings,
+        })
+    
+    def post(self, request):
+        settings = LibrarySettings.get_settings()
+        form = LibrarySettingsForm(request.POST, request.FILES, instance=settings)
+        
+        if form.is_valid():
+            settings_instance = form.save(commit=False)
+            settings_instance.updated_by = request.user
+            settings_instance.save()
+            messages.success(request, "Settings saved successfully! 🎉")
+            return redirect('dashboard:admin_settings')
+        else:
+            messages.error(request, "Please correct the errors below.", extra_tags="danger")
+            return render(request, self.template_name, {
+                'form': form,
+                'settings': settings,
+            })
+    
