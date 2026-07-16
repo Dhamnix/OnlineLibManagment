@@ -1,7 +1,7 @@
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.views.generic import TemplateView, ListView, DetailView
 from django.views import View
-from django.db.models import Sum, Count, Q
+from django.db.models import Sum, Count, Q, Avg  
 from django.utils import timezone
 from django.shortcuts import redirect, get_object_or_404, render
 from django.contrib import messages
@@ -21,17 +21,40 @@ class HomeView(TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        
+        # Get popular books with rating annotation
         popular_books = (
-            Book.objects.annotate(borrow_count=Count("borrowings"))
-            .order_by("-borrow_count", "title")[:5]
+            Book.objects.annotate(
+                borrow_count=Count("borrowings"),
+                average_rating=Avg("reviews__rating")  # Now Avg is defined
+            )
+            .order_by("-borrow_count", "title")
         )
+        
+        # If less than 8 books, get more books to fill the carousel
+        if popular_books.count() < 8:
+            additional_books = Book.objects.exclude(
+                id__in=popular_books.values_list('id', flat=True)
+            ).order_by('?')[:8 - popular_books.count()]
+            
+            popular_books = list(popular_books) + list(additional_books)
+        else:
+            popular_books = popular_books[:8]
+        
         context["popular_books"] = popular_books
+        context["total_books"] = Book.objects.count()
+        context["total_users"] = User.objects.count()
+        context["total_borrowings"] = Borrow.objects.filter(
+            status=Borrow.StatusChoices.BORROWED
+        ).count()
+        
         user = self.request.user
         context["user"] = user
         if user.is_authenticated:
             context["is_admin"] = user.is_superuser or getattr(user, "role", None) == "ADMIN"
         else:
             context["is_admin"] = False
+            
         return context
 
 
