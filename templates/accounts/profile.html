@@ -109,6 +109,161 @@
         letter-spacing: 0.5px;
     }
     
+    /* ============================================
+       RECOMMENDATION SECTION
+       ============================================ */
+    .rec-section {
+        margin-top: 2rem;
+    }
+    
+    .rec-section-title {
+        font-size: 1.3rem;
+        font-weight: 700;
+        margin-bottom: 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    
+    .rec-section-title i {
+        color: var(--primary);
+        font-size: 1.5rem;
+    }
+    
+    .rec-section-subtitle {
+        font-size: 0.8rem;
+        color: var(--gray);
+        font-weight: 400;
+        margin-left: 8px;
+    }
+    
+    .rec-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+        gap: 1rem;
+        margin-bottom: 2rem;
+    }
+    
+    .rec-book-card {
+        background: white;
+        border-radius: 20px;
+        overflow: hidden;
+        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        text-decoration: none;
+        border: 1px solid var(--gray-light);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    }
+    
+    .rec-book-card:hover {
+        transform: translateY(-6px);
+        box-shadow: 0 16px 32px rgba(0, 0, 0, 0.12);
+        border-color: var(--primary);
+    }
+    
+    .rec-book-cover {
+        height: 180px;
+        background: linear-gradient(135deg, #f1f5f9, #e2e8f0);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        position: relative;
+    }
+    
+    .rec-book-cover img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        transition: transform 0.5s ease;
+    }
+    
+    .rec-book-card:hover .rec-book-cover img {
+        transform: scale(1.05);
+    }
+    
+    .rec-book-cover i {
+        font-size: 3rem;
+        color: #94a3b8;
+    }
+    
+    .rec-book-badge {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        background: rgba(0, 0, 0, 0.7);
+        backdrop-filter: blur(10px);
+        padding: 2px 10px;
+        border-radius: 30px;
+        font-size: 0.55rem;
+        color: white;
+        font-weight: 600;
+    }
+    
+    .rec-book-badge.available {
+        background: rgba(16, 185, 129, 0.9);
+    }
+    
+    .rec-book-info {
+        padding: 0.8rem 1rem;
+    }
+    
+    .rec-book-title {
+        font-weight: 600;
+        font-size: 0.85rem;
+        color: var(--dark);
+        margin-bottom: 2px;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+    
+    .rec-book-author {
+        font-size: 0.7rem;
+        color: var(--gray);
+        margin-bottom: 4px;
+    }
+    
+    .rec-book-meta {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.65rem;
+    }
+    
+    .rec-book-meta .rating {
+        color: #f59e0b;
+    }
+    
+    .rec-book-meta .genre-tag {
+        background: rgba(99, 102, 241, 0.1);
+        color: var(--primary);
+        padding: 1px 8px;
+        border-radius: 30px;
+        font-size: 0.55rem;
+        font-weight: 600;
+    }
+    
+    .rec-empty {
+        text-align: center;
+        padding: 2rem;
+        background: white;
+        border-radius: 24px;
+        border: 2px dashed var(--gray-light);
+    }
+    
+    .rec-empty i {
+        font-size: 3rem;
+        color: var(--gray);
+        margin-bottom: 1rem;
+        opacity: 0.5;
+    }
+    
+    .rec-empty p {
+        color: var(--gray);
+        margin-bottom: 1rem;
+    }
+    
     .info-card {
         background: white;
         border-radius: 24px;
@@ -214,26 +369,31 @@
             padding: 1.5rem;
             text-align: center;
         }
-        
         .profile-avatar {
             width: 80px;
             height: 80px;
             font-size: 2rem;
             margin: 0 auto 1rem;
         }
-        
         .profile-name {
             font-size: 1.4rem;
         }
-        
         .stat-number-profile {
             font-size: 1.4rem;
         }
-        
         .edit-btn {
             position: static;
             margin-top: 1rem;
             display: inline-block;
+        }
+        .rec-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+    
+    @media (max-width: 576px) {
+        .rec-grid {
+            grid-template-columns: 1fr 1fr;
         }
     }
 </style>
@@ -308,10 +468,10 @@
             <div class="col-sm-6 col-lg-3">
                 <div class="stat-box-profile">
                     <div class="stat-icon-profile">
-                        <i class="fas fa-clock"></i>
+                        <i class="fas fa-star"></i>
                     </div>
-                    <div class="stat-number-profile">{{ active_reservations|default:"0" }}</div>
-                    <div class="stat-label-profile">Reservations</div>
+                    <div class="stat-number-profile">{{ total_reviews|default:"0" }}</div>
+                    <div class="stat-label-profile">Reviews Written</div>
                 </div>
             </div>
             <div class="col-sm-6 col-lg-3">
@@ -327,7 +487,217 @@
             </div>
         </div>
 
-        <div class="row g-4">
+        <!-- ============================================ -->
+        <!-- 🎯 RECOMMENDED BOOKS SECTION -->
+        <!-- ============================================ -->
+        {% if recommended_books %}
+        <div class="rec-section">
+            <div class="rec-section-title">
+                <i class="fas fa-robot"></i>
+                Books Just For You
+                <span class="rec-section-subtitle">Based on your reading history and preferences</span>
+            </div>
+            
+            <div class="rec-grid">
+                {% for book in recommended_books %}
+                <a href="{% url 'books:book_detail' book.pk %}" class="rec-book-card">
+                    <div class="rec-book-cover">
+                        {% if book.cover_image %}
+                            <img src="{{ book.cover_image.url }}" alt="{{ book.title }}">
+                        {% else %}
+                            <i class="fas fa-book"></i>
+                        {% endif %}
+                        <span class="rec-book-badge {% if book.available_copies > 0 %}available{% else %}unavailable{% endif %}">
+                            {% if book.available_copies > 0 %}Available{% else %}Unavailable{% endif %}
+                        </span>
+                    </div>
+                    <div class="rec-book-info">
+                        <div class="rec-book-title">{{ book.title|truncatechars:30 }}</div>
+                        <div class="rec-book-author">{{ book.author|truncatechars:20 }}</div>
+                        <div class="rec-book-meta">
+                            <span class="rating">
+                                <i class="fas fa-star"></i>
+                                {% with avg=book.avg_rating|default:0 %}
+                                    {{ avg|floatformat:1 }}
+                                {% endwith %}
+                            </span>
+                            <span class="genre-tag">{{ book.genre|truncatechars:12 }}</span>
+                        </div>
+                    </div>
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+        {% else %}
+        <div class="rec-empty">
+            <i class="fas fa-robot"></i>
+            <p>Start borrowing and rating books to get personalized recommendations!</p>
+            <a href="{% url 'books:book_list' %}" class="btn btn-primary btn-sm">
+                <i class="fas fa-search me-1"></i> Browse Books
+            </a>
+        </div>
+        {% endif %}
+
+        <!-- ============================================ -->
+        <!-- RECOMMENDATION CATEGORIES (Sub-sections) -->
+        <!-- ============================================ -->
+        {% if user_top_genres %}
+        <div class="row g-4 mt-3">
+            
+            <!-- Based on Your Favorite Genres -->
+            {% if recommended_by_genre %}
+            <div class="col-lg-6">
+                <div class="info-card">
+                    <h6 class="fw-bold mb-3">
+                        <i class="fas fa-tag me-2" style="color: var(--primary);"></i>
+                        Based on Your Favorite Genres
+                        <small class="text-muted fw-normal ms-2">
+                            {% for genre in user_top_genres|slice:":2" %}
+                                <span class="badge bg-primary bg-opacity-10 text-primary">{{ genre }}</span>
+                            {% endfor %}
+                        </small>
+                    </h6>
+                    <div class="row g-2">
+                        {% for book in recommended_by_genre %}
+                        <div class="col-6">
+                            <a href="{% url 'books:book_detail' book.pk %}" class="text-decoration-none">
+                                <div class="d-flex align-items-center gap-2 p-2 rounded-3 hover-bg-light" style="transition: all 0.3s ease;">
+                                    <div style="width: 40px; height: 55px; overflow: hidden; border-radius: 6px; flex-shrink: 0;">
+                                        {% if book.cover_image %}
+                                            <img src="{{ book.cover_image.url }}" alt="{{ book.title }}" style="width:100%;height:100%;object-fit:cover;">
+                                        {% else %}
+                                            <div style="width:100%;height:100%;background:var(--gray-light);display:flex;align-items:center;justify-content:center;">
+                                                <i class="fas fa-book text-muted" style="font-size:0.8rem;"></i>
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                    <div style="min-width:0;">
+                                        <div class="small fw-semibold text-dark text-truncate">{{ book.title|truncatechars:20 }}</div>
+                                        <div class="small text-muted text-truncate">{{ book.author|truncatechars:15 }}</div>
+                                    </div>
+                                </div>
+                            </a>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Based on Your Highly Rated Books -->
+            {% if recommended_similar_to_rated %}
+            <div class="col-lg-6">
+                <div class="info-card">
+                    <h6 class="fw-bold mb-3">
+                        <i class="fas fa-star me-2" style="color: #f59e0b;"></i>
+                        Similar to Books You Loved
+                        <small class="text-muted fw-normal ms-2">(Rated 4+ stars)</small>
+                    </h6>
+                    <div class="row g-2">
+                        {% for book in recommended_similar_to_rated %}
+                        <div class="col-6">
+                            <a href="{% url 'books:book_detail' book.pk %}" class="text-decoration-none">
+                                <div class="d-flex align-items-center gap-2 p-2 rounded-3 hover-bg-light" style="transition: all 0.3s ease;">
+                                    <div style="width: 40px; height: 55px; overflow: hidden; border-radius: 6px; flex-shrink: 0;">
+                                        {% if book.cover_image %}
+                                            <img src="{{ book.cover_image.url }}" alt="{{ book.title }}" style="width:100%;height:100%;object-fit:cover;">
+                                        {% else %}
+                                            <div style="width:100%;height:100%;background:var(--gray-light);display:flex;align-items:center;justify-content:center;">
+                                                <i class="fas fa-book text-muted" style="font-size:0.8rem;"></i>
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                    <div style="min-width:0;">
+                                        <div class="small fw-semibold text-dark text-truncate">{{ book.title|truncatechars:20 }}</div>
+                                        <div class="small text-muted text-truncate">{{ book.author|truncatechars:15 }}</div>
+                                    </div>
+                                </div>
+                            </a>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Based on Readers Like You (Co-borrowed) -->
+            {% if recommended_co_borrowed %}
+            <div class="col-lg-6">
+                <div class="info-card">
+                    <h6 class="fw-bold mb-3">
+                        <i class="fas fa-users me-2" style="color: #10b981;"></i>
+                        Readers Like You Also Enjoyed
+                    </h6>
+                    <div class="row g-2">
+                        {% for book in recommended_co_borrowed %}
+                        <div class="col-6">
+                            <a href="{% url 'books:book_detail' book.pk %}" class="text-decoration-none">
+                                <div class="d-flex align-items-center gap-2 p-2 rounded-3 hover-bg-light" style="transition: all 0.3s ease;">
+                                    <div style="width: 40px; height: 55px; overflow: hidden; border-radius: 6px; flex-shrink: 0;">
+                                        {% if book.cover_image %}
+                                            <img src="{{ book.cover_image.url }}" alt="{{ book.title }}" style="width:100%;height:100%;object-fit:cover;">
+                                        {% else %}
+                                            <div style="width:100%;height:100%;background:var(--gray-light);display:flex;align-items:center;justify-content:center;">
+                                                <i class="fas fa-book text-muted" style="font-size:0.8rem;"></i>
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                    <div style="min-width:0;">
+                                        <div class="small fw-semibold text-dark text-truncate">{{ book.title|truncatechars:20 }}</div>
+                                        <div class="small text-muted text-truncate">{{ book.author|truncatechars:15 }}</div>
+                                    </div>
+                                </div>
+                            </a>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Trending Books (Fallback) -->
+            {% if trending_books %}
+            <div class="col-lg-6">
+                <div class="info-card">
+                    <h6 class="fw-bold mb-3">
+                        <i class="fas fa-fire me-2" style="color: #f59e0b;"></i>
+                        Trending Now
+                        <small class="text-muted fw-normal ms-2">Most popular in the community</small>
+                    </h6>
+                    <div class="row g-2">
+                        {% for book in trending_books %}
+                        <div class="col-6">
+                            <a href="{% url 'books:book_detail' book.pk %}" class="text-decoration-none">
+                                <div class="d-flex align-items-center gap-2 p-2 rounded-3 hover-bg-light" style="transition: all 0.3s ease;">
+                                    <div style="width: 40px; height: 55px; overflow: hidden; border-radius: 6px; flex-shrink: 0;">
+                                        {% if book.cover_image %}
+                                            <img src="{{ book.cover_image.url }}" alt="{{ book.title }}" style="width:100%;height:100%;object-fit:cover;">
+                                        {% else %}
+                                            <div style="width:100%;height:100%;background:var(--gray-light);display:flex;align-items:center;justify-content:center;">
+                                                <i class="fas fa-book text-muted" style="font-size:0.8rem;"></i>
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                    <div style="min-width:0;">
+                                        <div class="small fw-semibold text-dark text-truncate">{{ book.title|truncatechars:20 }}</div>
+                                        <div class="small text-muted text-truncate">{{ book.author|truncatechars:15 }}</div>
+                                    </div>
+                                </div>
+                            </a>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+        </div>
+        {% endif %}
+
+        <!-- ============================================ -->
+        <!-- Personal Information & Recent Activity -->
+        <!-- ============================================ -->
+        <div class="row g-4 mt-3">
             <!-- Personal Information -->
             <div class="col-lg-6">
                 <div class="info-card">
@@ -365,11 +735,33 @@
                             <div class="info-value">{{ user.last_name|default:"—" }}</div>
                         </div>
                         
-                        <div class="col-12">
-                            <div class="info-label">
-                                <i class="fas fa-phone"></i> Phone (Coming Soon)
+                        <!-- Reading Stats -->
+                        <div class="col-12 mt-3">
+                            <hr>
+                            <h6 class="fw-bold mb-3">
+                                <i class="fas fa-chart-line me-2" style="color: var(--primary);"></i>
+                                Reading Statistics
+                            </h6>
+                            <div class="row g-2">
+                                <div class="col-6">
+                                    <div class="p-2 bg-light rounded-3 text-center">
+                                        <div class="small text-muted">Favorite Genre</div>
+                                        <div class="fw-bold">{{ favorite_genre|default:"—" }}</div>
+                                    </div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="p-2 bg-light rounded-3 text-center">
+                                        <div class="small text-muted">Avg Rating Given</div>
+                                        <div class="fw-bold">
+                                            {% if user_avg_rating > 0 %}
+                                                {{ user_avg_rating|floatformat:1 }} ★
+                                            {% else %}
+                                                —
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
-                            <div class="info-value text-muted">Not yet added</div>
                         </div>
                     </div>
                     
@@ -468,7 +860,7 @@
     </div>
 </section>
 
-<!-- Edit Profile Modal (Simple version) -->
+<!-- Edit Profile Modal -->
 <div class="modal fade" id="editProfileModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content" style="border-radius: 24px;">
@@ -513,7 +905,6 @@
 </div>
 
 <script>
-    // Change Password button placeholder
     document.getElementById('changePasswordBtn')?.addEventListener('click', function(e) {
         e.preventDefault();
         alert('Password change functionality coming soon!');
