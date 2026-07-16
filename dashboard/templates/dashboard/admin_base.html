@@ -3,6 +3,19 @@
 <html lang="en">
 
 <head>
+    <!-- FOUC Prevention: Apply dark mode BEFORE rendering -->
+    <script>
+        (function() {
+            const theme = localStorage.getItem('theme');
+            if (theme === 'dark') {
+                document.documentElement.setAttribute('data-theme', 'dark');
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.setAttribute('data-theme', 'light');
+                document.documentElement.classList.remove('dark');
+            }
+        })();
+    </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Admin Panel | BookWise{% endblock %}</title>
@@ -23,9 +36,36 @@
             box-sizing: border-box;
         }
 
+        :root {
+            --admin-bg: #f5f7fa;
+            --admin-surface: #ffffff;
+            --admin-sidebar-bg: #1e293b;
+            --admin-text: #1e293b;
+            --admin-text-muted: #64748b;
+            --admin-border: #e2e8f0;
+            --admin-hover: #f1f5f9;
+            --admin-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+            --admin-dropdown-bg: #ffffff;
+            --admin-dropdown-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        }
+
+        [data-theme="dark"] {
+            --admin-bg: #0f172a;
+            --admin-surface: #1e293b;
+            --admin-sidebar-bg: #0b1121;
+            --admin-text: #f1f5f9;
+            --admin-text-muted: #94a3b8;
+            --admin-border: #334155;
+            --admin-hover: #273549;
+            --admin-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+            --admin-dropdown-bg: #1e293b;
+            --admin-dropdown-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+        }
+
         body {
             font-family: 'Inter', sans-serif;
-            background: #f5f7fa;
+            background: var(--admin-bg);
+            color: var(--admin-text);
         }
 
         /* ========================================
@@ -37,7 +77,7 @@
             top: 0;
             width: 260px;
             height: 100vh;
-            background: #1e293b;
+            background: var(--admin-sidebar-bg);
             z-index: 100;
             transition: all 0.3s ease;
             overflow-y: auto;
@@ -168,26 +208,28 @@
 
         /* Admin Header */
         .admin-header {
-            background: white;
+            background: var(--admin-surface);
             padding: 0.8rem 1.5rem;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+            box-shadow: var(--admin-shadow);
             position: sticky;
             top: 0;
             z-index: 99;
+            border-bottom: 1px solid var(--admin-border);
         }
 
         .page-title h1 {
             font-size: 1.3rem;
             font-weight: 600;
             margin: 0;
+            color: var(--admin-text);
         }
 
         .page-title p {
             font-size: 0.75rem;
-            color: #64748b;
+            color: var(--admin-text-muted);
             margin: 0;
         }
 
@@ -223,11 +265,12 @@
         .admin-name {
             font-weight: 600;
             font-size: 0.85rem;
+            color: var(--admin-text);
         }
 
         .admin-role {
             font-size: 0.7rem;
-            color: #64748b;
+            color: var(--admin-text-muted);
         }
 
         .admin-dropdown {
@@ -238,9 +281,10 @@
             position: absolute;
             top: 45px;
             right: 0;
-            background: white;
+            background: var(--admin-dropdown-bg);
             border-radius: 12px;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            box-shadow: var(--admin-dropdown-shadow);
+            border: 1px solid var(--admin-border);
             min-width: 180px;
             opacity: 0;
             visibility: hidden;
@@ -257,24 +301,303 @@
             align-items: center;
             gap: 10px;
             padding: 0.6rem 1rem;
-            color: #1e293b;
+            color: var(--admin-text);
             text-decoration: none;
             font-size: 0.85rem;
         }
 
         .admin-dropdown-item:hover {
-            background: #f1f5f9;
+            background: var(--admin-hover);
         }
 
         /* Admin Footer */
         .admin-footer {
-            background: white;
+            background: var(--admin-surface);
             padding: 0.8rem 1.5rem;
             text-align: center;
-            border-top: 1px solid #e2e8f0;
+            border-top: 1px solid var(--admin-border);
             margin-top: 2rem;
             font-size: 0.75rem;
-            color: #64748b;
+            color: var(--admin-text-muted);
+        }
+
+        /* Theme Toggle Switch */
+        .theme-switch {
+            position: relative;
+            width: 60px;
+            height: 32px;
+            border: 2px solid #000000;
+            border-radius: 30px;
+            background: #000000;
+            cursor: pointer;
+            padding: 0;
+            flex-shrink: 0;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            outline: none;
+            display: flex;
+            align-items: center;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15);
+        }
+
+        .theme-switch-track {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            border-radius: 30px;
+            display: flex;
+            align-items: center;
+        }
+
+        .theme-switch-icon {
+            font-size: 0.8rem;
+            z-index: 2;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .theme-switch-slider {
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 24px;
+            height: 24px;
+            background: #ffffff;
+            border-radius: 50%;
+            transition: all 0.4s cubic-bezier(0.68, -0.55, 0.27, 1.55);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+        }
+
+        /* Light Mode / Default (sliding right) */
+        html:not(.dark) .theme-switch,
+        html[data-theme="light"] .theme-switch {
+            background: #ffffff !important;
+            border-color: #000000 !important;
+        }
+
+        html:not(.dark) .theme-switch-slider,
+        html[data-theme="light"] .theme-switch-slider {
+            transform: translateX(28px) !important;
+            background: #000000 !important;
+        }
+
+        html:not(.dark) .theme-switch-icon.moon-icon,
+        html[data-theme="light"] .theme-switch-icon.moon-icon {
+            color: #ffffff !important;
+        }
+
+        /* Dark Mode (sliding left) */
+        html.dark .theme-switch,
+        html[data-theme="dark"] .theme-switch {
+            background: #000000 !important;
+            border-color: #ffffff !important;
+        }
+
+        html.dark .theme-switch-slider,
+        html[data-theme="dark"] .theme-switch-slider {
+            transform: translateX(0) !important;
+            background: #ffffff !important;
+        }
+
+        html.dark .theme-switch-icon.moon-icon,
+        html[data-theme="dark"] .theme-switch-icon.moon-icon {
+            color: #000000 !important;
+        }
+
+        /* Admin Content Card overrides for dark mode */
+        html.dark .admin-content .card,
+        [data-theme="dark"] .admin-content .card {
+            background: var(--admin-surface) !important;
+            border-color: var(--admin-border) !important;
+            color: var(--admin-text) !important;
+        }
+
+        html.dark .admin-content .table,
+        [data-theme="dark"] .admin-content .table {
+            color: var(--admin-text) !important;
+        }
+
+        html.dark .admin-content .table thead th,
+        [data-theme="dark"] .admin-content .table thead th {
+            background: var(--admin-hover) !important;
+            color: var(--admin-text) !important;
+        }
+
+        html.dark .admin-content .table td,
+        [data-theme="dark"] .admin-content .table td {
+            border-bottom-color: var(--admin-border) !important;
+            color: var(--admin-text) !important;
+        }
+
+        html.dark .admin-content .form-control,
+        html.dark .admin-content .form-select,
+        [data-theme="dark"] .admin-content .form-control,
+        [data-theme="dark"] .admin-content .form-select {
+            background: var(--admin-hover) !important;
+            border-color: var(--admin-border) !important;
+            color: var(--admin-text) !important;
+        }
+
+        html.dark .admin-content .form-control:focus,
+        html.dark .admin-content .form-select:focus,
+        [data-theme="dark"] .admin-content .form-control:focus,
+        [data-theme="dark"] .admin-content .form-select:focus {
+            background: var(--admin-hover) !important;
+            color: var(--admin-text) !important;
+        }
+
+        html.dark .admin-content .text-muted,
+        [data-theme="dark"] .admin-content .text-muted {
+            color: var(--admin-text-muted) !important;
+        }
+
+        html.dark .admin-content h1, html.dark .admin-content h2, html.dark .admin-content h3, html.dark .admin-content h4, html.dark .admin-content h5, html.dark .admin-content h6,
+        [data-theme="dark"] .admin-content h1,
+        [data-theme="dark"] .admin-content h2,
+        [data-theme="dark"] .admin-content h3,
+        [data-theme="dark"] .admin-content h4,
+        [data-theme="dark"] .admin-content h5,
+        [data-theme="dark"] .admin-content h6 {
+            color: var(--admin-text) !important;
+        }
+
+        html.dark .admin-content hr,
+        [data-theme="dark"] .admin-content hr {
+            border-color: var(--admin-border) !important;
+        }
+
+        html.dark .admin-content .bg-white,
+        [data-theme="dark"] .admin-content .bg-white {
+            background-color: var(--admin-surface) !important;
+        }
+
+        html.dark .admin-content .bg-light,
+        [data-theme="dark"] .admin-content .bg-light {
+            background-color: var(--admin-hover) !important;
+        }
+
+        html.dark .admin-content .list-group-item,
+        [data-theme="dark"] .admin-content .list-group-item {
+            background-color: var(--admin-surface) !important;
+            border-color: var(--admin-border) !important;
+            color: var(--admin-text) !important;
+        }
+
+        html.dark .admin-content .btn-close,
+        [data-theme="dark"] .admin-content .btn-close {
+            filter: invert(1) grayscale(100%) brightness(200%) !important;
+        }
+        
+        /* Global page background for sub admin pages */
+        html.dark body,
+        [data-theme="dark"] body {
+            background-color: var(--admin-bg) !important;
+            color: var(--admin-text) !important;
+        }
+        
+        html.dark .admin-main,
+        [data-theme="dark"] .admin-main {
+            background-color: var(--admin-bg) !important;
+        }
+
+        /* Inputs group styling inside admin */
+        html.dark .input-group-text,
+        [data-theme="dark"] .input-group-text {
+            background-color: var(--admin-hover) !important;
+            color: var(--admin-text) !important;
+            border-color: var(--admin-border) !important;
+        }
+        
+        /* Bootstrap Table Overrides for Admin Panel */
+        html.dark .table,
+        [data-theme="dark"] .table {
+            background-color: var(--admin-surface) !important;
+            color: var(--admin-text) !important;
+            border-color: var(--admin-border) !important;
+        }
+
+        html.dark .table > :not(caption) > * > *,
+        [data-theme="dark"] .table > :not(caption) > * > * {
+            background-color: var(--admin-surface) !important;
+            color: var(--admin-text) !important;
+            border-color: var(--admin-border) !important;
+        }
+
+        html.dark .table-responsive,
+        [data-theme="dark"] .table-responsive {
+            background-color: var(--admin-surface) !important;
+            border-color: var(--admin-border) !important;
+        }
+
+        html.dark .table stripe,
+        html.dark .table-striped > tbody > tr:nth-of-type(odd) > *,
+        [data-theme="dark"] .table-striped > tbody > tr:nth-of-type(odd) > * {
+            background-color: var(--admin-hover) !important;
+            color: var(--admin-text) !important;
+        }
+
+        html.dark .table-hover > tbody > tr:hover > *,
+        [data-theme="dark"] .table-hover > tbody > tr:hover > * {
+            background-color: var(--admin-hover) !important;
+            color: var(--admin-text) !important;
+        }
+
+        /* Forms select and options inside admin search & filter */
+        html.dark .form-select option,
+        [data-theme="dark"] .form-select option {
+            background-color: var(--admin-surface) !important;
+            color: var(--admin-text) !important;
+        }
+
+        html.dark .form-control::placeholder,
+        [data-theme="dark"] .form-control::placeholder {
+            color: var(--admin-text-muted) !important;
+        }
+
+        /* Admin Dashboard Stat Cards Override */
+        html.dark .admin-content .stat-card,
+        [data-theme="dark"] .admin-content .stat-card {
+            background-color: var(--admin-surface) !important;
+            border-color: var(--admin-border) !important;
+            color: var(--admin-text) !important;
+            box-shadow: var(--admin-shadow) !important;
+        }
+
+        html.dark .admin-content .stat-card h3,
+        [data-theme="dark"] .admin-content .stat-card h3,
+        html.dark .admin-content .stat-card div[class*="number"],
+        [data-theme="dark"] .admin-content .stat-card div[class*="number"] {
+            color: var(--admin-text) !important;
+        }
+
+        html.dark .admin-content .stat-card p,
+        [data-theme="dark"] .admin-content .stat-card p {
+            color: var(--admin-text-muted) !important;
+        }
+
+        /* Bootstrap Pagination Overrides for Admin Panel */
+        html.dark .page-link,
+        [data-theme="dark"] .page-link {
+            background-color: var(--admin-surface) !important;
+            border-color: var(--admin-border) !important;
+            color: var(--admin-text) !important;
+        }
+
+        html.dark .page-link:hover,
+        [data-theme="dark"] .page-link:hover {
+            background-color: var(--admin-hover) !important;
+            color: var(--primary) !important;
+        }
+
+        html.dark .page-item.active .page-link,
+        [data-theme="dark"] .page-item.active .page-link {
+            background-color: var(--primary) !important;
+            border-color: var(--primary) !important;
+            color: #ffffff !important;
         }
 
         /* Content */
@@ -417,31 +740,42 @@
                 </div>
             </div>
 
-            <div class="admin-dropdown" id="adminDropdown">
-                <div class="admin-user" id="adminUserBtn">
-                    <div class="admin-info">
-                        <div class="admin-name">{{ user.get_full_name|default:user.username }}</div>
-                        <div class="admin-role">{{ user.get_role_display }}</div>
+            <div class="d-flex align-items-center gap-3">
+                <!-- Admin Theme Toggle Switch -->
+                <button class="theme-switch" id="adminThemeToggle" title="Toggle Dark Mode" aria-label="Toggle Dark Mode">
+                    <div class="theme-switch-track">
+                        <span class="theme-switch-slider">
+                            <i class="fas fa-moon theme-switch-icon moon-icon"></i>
+                        </span>
                     </div>
-                    <div class="admin-avatar">
-                        {{ user.username|first|upper }}
+                </button>
+
+                <div class="admin-dropdown" id="adminDropdown">
+                    <div class="admin-user" id="adminUserBtn">
+                        <div class="admin-info">
+                            <div class="admin-name">{{ user.get_full_name|default:user.username }}</div>
+                            <div class="admin-role">{{ user.get_role_display }}</div>
+                        </div>
+                        <div class="admin-avatar">
+                            {{ user.username|first|upper }}
+                        </div>
+                        <i class="fas fa-chevron-down" style="font-size: 0.7rem; color: var(--admin-text-muted);"></i>
                     </div>
-                    <i class="fas fa-chevron-down" style="font-size: 0.7rem; color: #64748b;"></i>
-                </div>
-                <div class="admin-dropdown-menu">
-                    <a href="{% url 'accounts:profile' %}" class="admin-dropdown-item">
-                        <i class="fas fa-user"></i> Profile
-                    </a>
-                    <a href="{% url 'dashboard:home' %}" class="admin-dropdown-item">
-                        <i class="fas fa-globe"></i> Frontend
-                    </a>
-                    <hr class="my-1">
-                    <form method="post" action="{% url 'accounts:logout' %}">
-                        {% csrf_token %}
-                        <button type="submit" class="admin-dropdown-item" style="width: 100%; color: #ef4444;">
-                            <i class="fas fa-sign-out-alt"></i> Logout
-                        </button>
-                    </form>
+                    <div class="admin-dropdown-menu">
+                        <a href="{% url 'accounts:profile' %}" class="admin-dropdown-item">
+                            <i class="fas fa-user"></i> Profile
+                        </a>
+                        <a href="{% url 'dashboard:home' %}" class="admin-dropdown-item">
+                            <i class="fas fa-globe"></i> Frontend
+                        </a>
+                        <hr class="my-1">
+                        <form method="post" action="{% url 'accounts:logout' %}">
+                            {% csrf_token %}
+                            <button type="submit" class="admin-dropdown-item" style="width: 100%; color: #ef4444;">
+                                <i class="fas fa-sign-out-alt"></i> Logout
+                            </button>
+                        </form>
+                    </div>
                 </div>
             </div>
         </header>
@@ -514,6 +848,27 @@
                 link.classList.add('active');
             }
         });
+
+        // =============================================
+        // Admin Theme Toggle (synced with main site)
+        // =============================================
+        (function() {
+            const toggle = document.getElementById('adminThemeToggle');
+            if (!toggle) return;
+
+            toggle.addEventListener('click', function() {
+                const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+                if (isDark) {
+                    document.documentElement.setAttribute('data-theme', 'light');
+                    document.documentElement.classList.remove('dark');
+                    localStorage.setItem('theme', 'light');
+                } else {
+                    document.documentElement.setAttribute('data-theme', 'dark');
+                    document.documentElement.classList.add('dark');
+                    localStorage.setItem('theme', 'dark');
+                }
+            });
+        })();
     </script>
 
     {% block extra_js %}{% endblock %}

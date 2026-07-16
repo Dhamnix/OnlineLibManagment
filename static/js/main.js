@@ -72,28 +72,37 @@ class UI {
 // Dark Mode Toggle
 class DarkMode {
     static init() {
-        const toggle = document.querySelector('[data-toggle-darkmode]');
-        if (!toggle) return;
+        // Apply saved theme immediately (also done in base.html FOUC script)
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme === 'dark') {
+            document.documentElement.setAttribute('data-theme', 'dark');
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.setAttribute('data-theme', 'light');
+            document.documentElement.classList.remove('dark');
+        }
         
-        const isDark = localStorage.getItem('darkmode') === 'true';
-        if (isDark) this.enable();
+        // Find all theme toggles (navbar + any other)
+        const toggles = document.querySelectorAll('#themeToggle, #adminThemeToggle');
+        if (toggles.length === 0) return;
         
-        toggle.addEventListener('click', () => this.toggle());
+        // Attach click to all toggles
+        toggles.forEach(toggle => {
+            toggle.addEventListener('click', () => this.toggle());
+        });
     }
     
     static toggle() {
-        const isDark = document.documentElement.getAttribute('data-bs-theme') === 'dark';
-        isDark ? this.disable() : this.enable();
-    }
-    
-    static enable() {
-        document.documentElement.setAttribute('data-bs-theme', 'dark');
-        localStorage.setItem('darkmode', 'true');
-    }
-    
-    static disable() {
-        document.documentElement.removeAttribute('data-bs-theme');
-        localStorage.setItem('darkmode', 'false');
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        if (isDark) {
+            document.documentElement.setAttribute('data-theme', 'light');
+            document.documentElement.classList.remove('dark');
+            localStorage.setItem('theme', 'light');
+        } else {
+            document.documentElement.setAttribute('data-theme', 'dark');
+            document.documentElement.classList.add('dark');
+            localStorage.setItem('theme', 'dark');
+        }
     }
 }
 
